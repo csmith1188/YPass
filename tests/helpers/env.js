@@ -1,0 +1,39 @@
+/**
+ * Build a valid test environment. Tests should mutate copies, not process.env, when possible.
+ */
+export function validTestEnv(overrides = {}) {
+  return {
+    NODE_ENV: 'test',
+    APP_NAME: 'formbar-app-test',
+    APP_BASE_URL: 'http://localhost:3000',
+    HOST: '127.0.0.1',
+    PORT: '3000',
+    WEB_CONCURRENCY: '1',
+    LOCAL_AUTH_ENABLED: 'true',
+    FORMBAR_AUTH_ENABLED: 'true',
+    ENTRA_AUTH_ENABLED: 'false',
+    EMAIL_ENABLED: 'false',
+    SOCKET_IO_ENABLED: 'false',
+    REDIS_ENABLED: 'false',
+    SEQ_ENABLED: 'false',
+    FORMBAR_WS_CLIENT_ENABLED: 'false',
+    FORMBAR_WS_EXAMPLE_ENABLED: 'false',
+    FORMBAR_HTTP_EXAMPLE_ENABLED: 'false',
+    API_ENABLED: 'true',
+    API_DOCS_ENABLED: 'false',
+    BACKGROUND_JOBS_ENABLED: 'false',
+    LOCAL_AUTH_EMAIL_FLOW: 'disabled',
+    FORMBAR_OAUTH_MODE: 'authorization_code',
+    SESSION_SECRET: 'test-session-secret-must-be-32-chars+',
+    SESSION_COOKIE_NAME: 'fbapp.sid',
+    TOKEN_ENCRYPTION_KEY: 'test-token-encryption-key-32ch!',
+    DATABASE_PROVIDER: 'sqlite',
+    DATABASE_URL: ':memory:',
+    FORMBAR_BASE_URL: 'https://formbar.test',
+    FORMBAR_CLIENT_ID: 'test-client',
+    FORMBAR_CLIENT_SECRET: 'test-secret',
+    FORMBAR_REDIRECT_URI: 'http://localhost:3000/auth/formbar/callback',
+    FORMBAR_SCOPES: 'app.profile.read',
+    ...overrides,
+  };
+}

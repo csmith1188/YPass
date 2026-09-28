@@ -1,0 +1,9 @@
+# Publish Node only on loopback for a host Nginx (`deploy/nginx/formbar-app.conf`).
+# Do not combine with --scale app=N (one host port) or --profile edge (in-compose Nginx).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d --build
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:3000:3000"

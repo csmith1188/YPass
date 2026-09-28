@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> · <%= typeof appName !== 'undefined' ? appName : 'App' %></title>
+    <link rel="stylesheet" href="/css/app.css" />
+    <!-- Raw HTML is used only to inject the CSP nonce attribute. Do not unescaped-print user data. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'" />
+  </head>
+  <body>
+    <%- include('../partials/header') %>
+    <main class="page">
+      <% if (typeof error !== 'undefined' && error) { %>
+        <p class="flash flash-error"><%= error %></p>
+      <% } %>
+      <%- body %>
+    </main>
+    <%- include('../partials/footer') %>
+  </body>
+</html>

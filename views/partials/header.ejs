@@ -1,0 +1,16 @@
+<header class="site-header">
+  <a class="brand" href="/"><%= typeof appName !== 'undefined' ? appName : 'App' %></a>
+  <nav>
+    <a href="/">Home</a>
+    <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+      <a href="/example">Example</a>
+      <a href="/account">Account</a>
+      <form class="inline" method="post" action="/auth/logout">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
+        <button type="submit">Sign out</button>
+      </form>
+    <% } else { %>
+      <a href="/auth/login">Sign in</a>
+    <% } %>
+  </nav>
+</header>
