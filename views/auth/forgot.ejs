@@ -1,0 +1,9 @@
+<h1>Forgot password</h1>
+<% if (message) { %>
+  <p class="flash"><%= message %></p>
+<% } %>
+<form method="post" action="/auth/forgot">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+  <label>Email <input name="email" type="email" required /></label>
+  <button type="submit">Send reset link</button>
+</form>

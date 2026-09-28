@@ -1,0 +1,10 @@
+<h1>Reset password</h1>
+<% if (error) { %>
+  <p class="flash flash-error"><%= error %></p>
+<% } %>
+<form method="post" action="/auth/reset">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+  <input type="hidden" name="token" value="<%= token %>" />
+  <label>New password <input name="password" type="password" required minlength="12" /></label>
+  <button type="submit">Reset password</button>
+</form>

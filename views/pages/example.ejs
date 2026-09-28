@@ -1,0 +1,7 @@
+<h1>Example application page</h1>
+<p>Authenticated users land here after signing in.</p>
+<% if (socketEnabled) { %>
+  <p>Socket.IO is enabled. Open the browser console to see a ping/pong example.</p>
+  <script nonce="<%= cspNonce %>" src="/socket.io/socket.io.js"></script>
+  <script nonce="<%= cspNonce %>" src="/js/example-socket.js"></script>
+<% } %>

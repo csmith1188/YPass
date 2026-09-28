@@ -1,0 +1,30 @@
+/**
+ * Pino redaction paths for secrets that must never appear in logs.
+ */
+export const REDACT_PATHS = [
+  'password',
+  'token',
+  'access_token',
+  'refresh_token',
+  'authorization',
+  'cookie',
+  'api',
+  'client_secret',
+  'SESSION_SECRET',
+  'FORMBAR_API_KEY',
+  'SEQ_API_KEY',
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'res.headers["set-cookie"]',
+  '*.password',
+  '*.token',
+  '*.access_token',
+  '*.refresh_token',
+  '*.authorization',
+  '*.cookie',
+  '*.api',
+  '*.client_secret',
+  '*.pin',
+  '*.secret',
+  '*.apiKey',
+];

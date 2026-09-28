@@ -1,0 +1,6 @@
+<h1>Email verification</h1>
+<% if (ok) { %>
+  <p>Your email is verified. You can <a href="/auth/login">sign in</a>.</p>
+<% } else { %>
+  <p class="flash flash-error"><%= typeof error !== 'undefined' ? error : 'Verification failed' %></p>
+<% } %>
