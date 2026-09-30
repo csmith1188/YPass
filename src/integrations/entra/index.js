@@ -46,6 +46,7 @@ export function createEntraProvider({ config, logger }) {
           scopes: config.entra.scopes,
           redirectUri: config.entra.redirectUri,
           codeVerifier: verifier,
+          nonce,
         });
         const claims = result.idTokenClaims || {};
         if (nonce && claims.nonce && claims.nonce !== nonce) {
