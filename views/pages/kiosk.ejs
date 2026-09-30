@@ -1,0 +1,6 @@
+<h1>Kiosk</h1>
+<% if (currentUser) { %>
+    <p>You are logged in as <%= currentUser.display_name %>.</p>
+<% } else { %>
+    <p>Please log in to access kiosk features.</p>
+<% } %>
