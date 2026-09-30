@@ -9,5 +9,6 @@ export function createWebRouter(container) {
   router.get('/example', requireAuthentication(), controller.example);
   router.get('/teacher', requireAuthentication(), controller.teacher);
   router.get('/kiosk', requireAuthentication(), controller.kiosk);
+  router.get('/manager', requireAuthentication(), controller.manager);
   return router;
 }
