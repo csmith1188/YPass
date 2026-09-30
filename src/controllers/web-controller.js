@@ -23,6 +23,12 @@ export function createWebController(container) {
         title: 'Kiosk',
         currentUser: req.session.user || res.locals.currentUser || null,
       });
-    }   
+    },
+    manager(req, res) {
+      res.render('pages/manager', {
+        title: 'Manager',
+        currentUser: req.session.user || res.locals.currentUser || null,
+      });
+    } 
   };
 }
