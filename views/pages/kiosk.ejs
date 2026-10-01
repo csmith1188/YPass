@@ -1,6 +1,25 @@
+<header>
+    <title>Kiosk</title>
+</header>
 <h1>Kiosk</h1>
 <% if (currentUser) { %>
     <p>You are logged in as <%= currentUser.display_name %>.</p>
+    <form action="/kiosk" method="POST">
+        <select name="passType" required>
+            <option value="">Select Pass Type</option>
+            <option value="round">Round Trip(There and back)</option>
+            <option value="oneWay">Oneway(Just there)</option>
+            <option value="appoint">Appointment(For a future date)</option>
+        </select>
+        <br>
+        <select name="passDest" required>##This should end up touching db for all destinations than display list in dropdown
+            <option value="">Select Destination</option>
+            <option value="destination1">Destination 1</option>
+            <option value="destination2">Destination 2</option>
+        </select>
+        <br>
+        <button type="submit">Generate Pass</button>
+    </form>
 <% } else { %>
     <p>Please log in to access kiosk features.</p>
 <% } %>
