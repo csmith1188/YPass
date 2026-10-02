@@ -14,6 +14,7 @@ import {
   createTokenRepository,
   createRbacRepository,
   createAuditRepository,
+  createPassRepository,
 } from '#repositories/index.js';
 import { createRbac } from '#authorization/rbac.js';
 import { createTokenService } from '#auth/tokens.js';
@@ -23,6 +24,7 @@ import { createLocalAuthService } from '#services/local-auth-service.js';
 import { createFormbarOAuth, createFormbarHttpClient, createFormbarWsManager, createFormbarWsExample } from '#integrations/formbar/index.js';
 import { createFormbarHttpExample } from '#integrations/formbar/examples/http-example.js';
 import { createEntraProvider } from '#integrations/entra/index.js';
+import { createPassService } from '#services/pass-service.js';
 
 export async function createContainer({ config, logger }) {
   const auditLogger = createAuditLogger(logger);
@@ -41,6 +43,7 @@ export async function createContainer({ config, logger }) {
   const providerTokens = createTokenRepository(db);
   const rbacRepository = createRbacRepository(db);
   const auditRepo = createAuditRepository(db);
+  const passRepository = createPassRepository(db);
   const rbac = createRbac({ rbacRepository });
   const tokens = createTokenService(challenges, clock);
 
@@ -71,6 +74,8 @@ export async function createContainer({ config, logger }) {
         clock,
       })
     : null;
+
+  const passService = createPassService({ db, passes: passRepository, clock });
 
   const formbarOAuth = config.features.formbarAuth ? createFormbarOAuth({ config, logger }) : null;
   const formbarHttp = config.formbar.baseUrl ? createFormbarHttpClient({ config, logger }) : null;
@@ -108,6 +113,8 @@ export async function createContainer({ config, logger }) {
     tokens,
     userService,
     localAuth,
+    passRepository,
+    passService,
     formbarOAuth,
     formbarHttp,
     formbarHttpExample,

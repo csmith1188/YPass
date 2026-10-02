@@ -137,3 +137,57 @@ export function createAuditRepository(db) {
     },
   };
 }
+
+export function createPassRepository(db) {
+  const knex = db.knex;
+
+  return {
+    async findKioskByCode(kioskCode, trx = knex) {
+      return trx('kiosks')
+        .join('locations', 'kiosks.location_id', 'locations.id')
+        .where({ kiosk_code: kioskCode, 'kiosks.active': true, 'locations.active': true })
+        .select(
+          'kiosks.*',
+          'locations.name as location_name',
+          'locations.type as location_type',
+          'locations.teacher_user_id as location_teacher_id',
+        )
+        .first();
+    },
+    async listDestinations(originLocationId, trx = knex) {
+      return trx('locations')
+        .leftJoin('users', 'locations.teacher_user_id', 'users.id')
+        .where('locations.active', true)
+        .whereNot('locations.id', originLocationId)
+        .select(
+          'locations.id',
+          'locations.name',
+          'locations.type',
+          'locations.teacher_user_id',
+          'users.display_name as teacher_name',
+        )
+        .orderBy('locations.name');
+    },
+    async findStudentByNumber(studentNumber, trx = knex) {
+      return trx('students').where({ student_number: studentNumber, status: 'active' }).first();
+    },
+    async findCurrentPassForStudent(studentId, trx = knex) {
+      return trx('passes')
+        .where({ student_id: studentId })
+        .whereIn('status', ['pending_approval', 'active', 'arrived'])
+        .orderBy('requested_at', 'desc')
+        .first();
+    },
+    async createPass(pass, event, trx = knex) {
+      await trx('passes').insert(pass);
+      await trx('pass_events').insert(event);
+      return pass;
+    },
+    async updatePass(id, patch, trx = knex) {
+      await trx('passes').where({ id }).update(patch);
+    },
+    async addEvent(event, trx = knex) {
+      await trx('pass_events').insert(event);
+    },
+  };
+}
