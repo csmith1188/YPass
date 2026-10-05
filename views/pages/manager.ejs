@@ -1,13 +1,12 @@
-<h1>Manager-Seite</h1>
-<div>
-    <p>This is the Manager page.</p>
-</div>
-<div id="activePassArea">
-
-</div>
-<div id="appointmentPassArea">
-
-</div>
-<div id="timoutHistArea">
-
-</div>
+<% const activeFilters = filters || {}; %>
+<section class="staff-page">
+  <div class="staff-heading"><div><p class="kiosk-kicker">Administration</p><h1>Manager panel</h1><p class="muted">System-wide pass and appointment history.</p></div></div>
+  <form method="get" action="/manager" class="filter-bar">
+    <label>Pass status<select name="status"><option value="">All pass statuses</option><% ['pending_approval', 'active', 'arrived', 'completed', 'cancelled', 'expired'].forEach((status) => { %><option value="<%= status %>" <%= activeFilters.status === status ? 'selected' : '' %>><%= status %></option><% }) %></select></label>
+    <label>Appointment status<select name="appointmentStatus"><option value="">All appointment statuses</option><% ['scheduled', 'cancelled', 'completed', 'no_show'].forEach((status) => { %><option value="<%= status %>" <%= activeFilters.appointmentStatus === status ? 'selected' : '' %>><%= status %></option><% }) %></select></label>
+    <label>Student ID<input name="studentNumber" value="<%= activeFilters.studentNumber || '' %>"></label>
+    <button type="submit">Filter</button>
+  </form>
+  <section class="staff-section"><h2>All passes</h2><% if (!passes.length) { %><p class="muted">No passes match these filters.</p><% } %><div class="staff-list"><% passes.forEach((pass) => { %><article class="staff-row"><div><strong><%= pass.student_name %></strong><span class="muted"> ID <%= pass.student_number %></span><p><%= pass.origin_name %> to <%= pass.destination_name %> · <%= pass.status %></p></div><time><%= pass.requested_at %></time></article><% }) %></div></section>
+  <section class="staff-section"><h2>All appointments</h2><% if (!appointments.length) { %><p class="muted">No appointments match these filters.</p><% } %><div class="staff-list"><% appointments.forEach((appointment) => { %><article class="staff-row"><div><strong><%= appointment.student_name %></strong><span class="muted"> ID <%= appointment.student_number %></span><p><%= appointment.origin_name %> to <%= appointment.destination_name %> · <%= appointment.status %></p></div><time><%= appointment.scheduled_at %></time></article><% }) %></div></section>
+</section>

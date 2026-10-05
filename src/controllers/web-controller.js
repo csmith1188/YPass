@@ -15,10 +15,41 @@ export function createWebController(container) {
       });
     },
     teacher(req, res) {
-      res.render('pages/teacher', {
-        title: 'Teacher',
-        currentUser: req.session.user || res.locals.currentUser || null,
-      });
+      return passService.teacherDashboard(req.currentUser.id).then((dashboard) =>
+        res.render('pages/teacher', { title: 'Teacher panel', currentUser: req.currentUser, ...dashboard, message: null }),
+      );
+    },
+    async teacherAction(req, res, next) {
+      try {
+        const action = req.body.action === 'approve' ? passService.approvePass : passService.cancelPass;
+        await action({ passId: req.body.passId, userId: req.currentUser.id });
+        const dashboard = await passService.teacherDashboard(req.currentUser.id);
+        res.render('pages/teacher', { title: 'Teacher panel', currentUser: req.currentUser, ...dashboard, message: req.body.action === 'approve' ? 'Pass approved.' : 'Pass cancelled.' });
+      } catch (error) {
+        next(error);
+      }
+    },
+    async appointment(req, res, next) {
+      try {
+        const options = await passService.appointmentOptions(req.currentUser.id);
+        res.render('pages/appointment', { title: 'Create appointment', currentUser: req.currentUser, ...options, form: {}, message: null });
+      } catch (error) {
+        next(error);
+      }
+    },
+    async createAppointment(req, res, next) {
+      try {
+        await passService.createAppointment({ userId: req.currentUser.id, ...req.body });
+        const options = await passService.appointmentOptions(req.currentUser.id);
+        res.render('pages/appointment', { title: 'Create appointment', currentUser: req.currentUser, ...options, form: {}, message: 'Appointment created.' });
+      } catch (error) {
+        if (!error.expose) {
+          next(error);
+          return;
+        }
+        const options = await passService.appointmentOptions(req.currentUser.id);
+        res.status(error.status).render('pages/appointment', { title: 'Create appointment', currentUser: req.currentUser, ...options, form: req.body, message: error.message });
+      }
     },
     async kiosk(req, res, next) {
       try {
@@ -102,12 +133,14 @@ export function createWebController(container) {
         }
       }
     },
-    manager(req, res) {
-      res.render('pages/manager', {
-        title: 'Manager',
-        currentUser: req.session.user || res.locals.currentUser || null,
-      });
-    } 
+    async manager(req, res, next) {
+      try {
+        const manager = await passService.managerDashboard(req.query);
+        res.render('pages/manager', { title: 'Manager panel', currentUser: req.currentUser, ...manager });
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 
   function renderKiosk(res, data, status = 200) {

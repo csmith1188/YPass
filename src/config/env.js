@@ -37,6 +37,7 @@ const rawSchema = z.object({
   PORT: int(3000),
   TRUST_PROXY: z.string().default('0'),
   WEB_CONCURRENCY: int(1),
+  MANAGERS: z.string().optional().default(''),
 
   LOCAL_AUTH_ENABLED: bool(true),
   FORMBAR_AUTH_ENABLED: bool(true),
@@ -298,6 +299,7 @@ export function parseConfig(source) {
       allowedHosts: parseList(raw.LOADTEST_ALLOWED_HOSTS),
       allowProduction: raw.LOADTEST_ALLOW_PRODUCTION,
     },
+    managers: parseList(raw.MANAGERS).map((email) => email.toLowerCase()),
   };
 
   const dependencyErrors = validateFeatureDependencies(config);

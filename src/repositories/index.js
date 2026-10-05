@@ -189,5 +189,78 @@ export function createPassRepository(db) {
     async addEvent(event, trx = knex) {
       await trx('pass_events').insert(event);
     },
+    async listTeacherLocations(userId, trx = knex) {
+      return trx('locations').where({ teacher_user_id: userId, active: true }).orderBy('name');
+    },
+    async listTeacherPasses(userId, trx = knex) {
+      return trx('passes')
+        .join('students', 'passes.student_id', 'students.id')
+        .join('locations as origin', 'passes.origin_location_id', 'origin.id')
+        .join('locations as destination', 'passes.destination_location_id', 'destination.id')
+        .leftJoin('users as destination_teacher', 'passes.destination_teacher_id', 'destination_teacher.id')
+        .where((query) => query.where('origin.teacher_user_id', userId).orWhere('destination.teacher_user_id', userId))
+        .select(
+          'passes.*',
+          'students.student_number',
+          'students.display_name as student_name',
+          'origin.name as origin_name',
+          'destination.name as destination_name',
+          'destination_teacher.display_name as destination_teacher_name',
+        )
+        .orderBy('passes.requested_at', 'desc');
+    },
+    async findPassForTeacher(passId, userId, trx = knex) {
+      return trx('passes')
+        .join('locations as origin', 'passes.origin_location_id', 'origin.id')
+        .join('locations as destination', 'passes.destination_location_id', 'destination.id')
+        .where('passes.id', passId)
+        .where((query) => query.where('origin.teacher_user_id', userId).orWhere('destination.teacher_user_id', userId))
+        .select('passes.*', 'origin.teacher_user_id as origin_teacher_id', 'destination.teacher_user_id as destination_teacher_id')
+        .first();
+    },
+    async listLocations(trx = knex) {
+      return trx('locations').where({ active: true }).orderBy('name');
+    },
+    async findLocationPair(originId, destinationId, trx = knex) {
+      const rows = await trx('locations').whereIn('id', [originId, destinationId]);
+      return {
+        origin: rows.find((row) => row.id === originId),
+        destination: rows.find((row) => row.id === destinationId),
+      };
+    },
+    async createAppointment(appointment, trx = knex) {
+      await trx('appointments').insert(appointment);
+      return appointment;
+    },
+    async listAppointmentsForTeacher(userId, trx = knex) {
+      return trx('appointments')
+        .join('students', 'appointments.student_id', 'students.id')
+        .join('locations as origin', 'appointments.origin_location_id', 'origin.id')
+        .join('locations as destination', 'appointments.destination_location_id', 'destination.id')
+        .where((query) => query.where('appointments.created_by', userId).orWhere('origin.teacher_user_id', userId).orWhere('destination.teacher_user_id', userId))
+        .select('appointments.*', 'students.student_number', 'students.display_name as student_name', 'origin.name as origin_name', 'destination.name as destination_name')
+        .orderBy('appointments.scheduled_at');
+    },
+    async listManagerPasses(filters = {}, trx = knex) {
+      const query = trx('passes')
+        .join('students', 'passes.student_id', 'students.id')
+        .join('locations as origin', 'passes.origin_location_id', 'origin.id')
+        .join('locations as destination', 'passes.destination_location_id', 'destination.id')
+        .leftJoin('appointments', 'passes.appointment_id', 'appointments.id')
+        .select('passes.*', 'students.student_number', 'students.display_name as student_name', 'origin.name as origin_name', 'destination.name as destination_name', 'appointments.scheduled_at as appointment_scheduled_at');
+      if (filters.status) query.where('passes.status', filters.status);
+      if (filters.studentNumber) query.where('students.student_number', filters.studentNumber);
+      return query.orderBy('passes.requested_at', 'desc');
+    },
+    async listManagerAppointments(filters = {}, trx = knex) {
+      const query = trx('appointments')
+        .join('students', 'appointments.student_id', 'students.id')
+        .join('locations as origin', 'appointments.origin_location_id', 'origin.id')
+        .join('locations as destination', 'appointments.destination_location_id', 'destination.id')
+        .select('appointments.*', 'students.student_number', 'students.display_name as student_name', 'origin.name as origin_name', 'destination.name as destination_name');
+      if (filters.appointmentStatus) query.where('appointments.status', filters.appointmentStatus);
+      if (filters.studentNumber) query.where('students.student_number', filters.studentNumber);
+      return query.orderBy('appointments.scheduled_at', 'desc');
+    },
   };
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictError, NotFoundError, ValidationError } from '#errors';
+import { AuthorizationError, ConflictError, NotFoundError, ValidationError } from '#errors';
 
 export function createPassService({ db, passes, clock }) {
   async function kioskOptions(kioskCode, trx) {
@@ -110,7 +110,85 @@ export function createPassService({ db, passes, clock }) {
     });
   }
 
-  return { kioskOptions, scanStudent, requestPass };
+  async function teacherDashboard(userId) {
+    const [locations, passes, appointments] = await Promise.all([
+      passesRepository.listTeacherLocations(userId),
+      passesRepository.listTeacherPasses(userId),
+      passesRepository.listAppointmentsForTeacher(userId),
+    ]);
+    return { locations, passes, appointments };
+  }
+
+  async function approvePass({ passId, userId }) {
+    return changeTeacherPass({ passId, userId, action: 'approve' });
+  }
+
+  async function cancelPass({ passId, userId }) {
+    return changeTeacherPass({ passId, userId, action: 'cancel' });
+  }
+
+  async function changeTeacherPass({ passId, userId, action }) {
+    const now = clock.now();
+    return db.transaction(async (trx) => {
+      const pass = await passesRepository.findPassForTeacher(passId, userId, trx);
+      if (!pass) throw new NotFoundError('Pass not found or outside your locations');
+      if (action === 'approve' && pass.status !== 'pending_approval') throw new ConflictError('Only pending passes can be approved');
+      if (action === 'cancel' && ['completed', 'cancelled', 'expired'].includes(pass.status)) throw new ConflictError('This pass is already closed');
+      const patch = action === 'approve'
+        ? { status: 'active', approved_by: userId, approved_at: now, departed_at: now, timeout_at: new Date(now.getTime() + 30 * 60 * 1000), updated_at: now }
+        : { status: 'cancelled', ended_at: now, ended_teacher_id: userId, updated_at: now };
+      await passesRepository.updatePass(passId, patch, trx);
+      await passesRepository.addEvent({
+        id: randomUUID(), pass_id: passId, event_type: action === 'approve' ? 'approved' : 'cancelled',
+        kiosk_id: null, location_id: pass.destination_teacher_id === userId ? pass.destination_location_id : pass.origin_location_id,
+        actor_user_id: userId, occurred_at: now, metadata_json: null,
+      }, trx);
+      return { ...pass, ...patch };
+    });
+  }
+
+  async function appointmentOptions(userId) {
+    const locations = await passesRepository.listLocations();
+    const teacherLocations = locations.filter((location) => location.teacher_user_id === userId);
+    return { locations, teacherLocations };
+  }
+
+  async function createAppointment({ userId, studentNumber, studentName, originLocationId, destinationLocationId, scheduledAt, notes }) {
+    const when = new Date(scheduledAt);
+    if (Number.isNaN(when.getTime())) throw new ValidationError('Choose a valid appointment time');
+    if (when <= clock.now()) throw new ValidationError('Appointment time must be in the future');
+    return db.transaction(async (trx) => {
+      const student = await passesRepository.findStudentByNumber(studentNumber, trx);
+      if (!student) throw new ValidationError('Student ID was not found');
+      if (student.display_name.trim().toLowerCase() !== studentName.trim().toLowerCase()) throw new ValidationError('Student name does not match that student ID');
+      const { origin, destination } = await passesRepository.findLocationPair(originLocationId, destinationLocationId, trx);
+      if (!origin || !destination || origin.id === destination.id) throw new ValidationError('Choose two different locations');
+      if (isBathroom(origin) || isBathroom(destination)) throw new ValidationError('Bathrooms cannot be used for appointments');
+      if (origin.teacher_user_id !== userId && destination.teacher_user_id !== userId) throw new AuthorizationError('One appointment location must be yours');
+      const appointment = {
+        id: randomUUID(), student_id: student.id, origin_location_id: origin.id, destination_location_id: destination.id,
+        destination_teacher_id: destination.teacher_user_id || null, created_by: userId, scheduled_at: when,
+        status: 'scheduled', notes: notes?.trim() || null,
+      };
+      await passesRepository.createAppointment(appointment, trx);
+      return { appointment, student, origin, destination };
+    });
+  }
+
+  async function managerDashboard(filters = {}) {
+    const [passRows, appointmentRows] = await Promise.all([
+      passesRepository.listManagerPasses(filters),
+      passesRepository.listManagerAppointments(filters),
+    ]);
+    return { passes: passRows, appointments: appointmentRows, filters };
+  }
+
+  const passesRepository = passes;
+  return { kioskOptions, scanStudent, requestPass, teacherDashboard, approvePass, cancelPass, appointmentOptions, createAppointment, managerDashboard };
+}
+
+function isBathroom(location) {
+  return location.type === 'bathroom' || /bathroom|restroom|toilet/i.test(location.name);
 }
 
 function transitionForScan(pass, kioskLocationId) {
