@@ -1,25 +1,64 @@
-<header>
-    <title>Kiosk</title>
-</header>
-<h1>Kiosk</h1>
-<% if (currentUser) { %>
-    <p>You are logged in as <%= currentUser.display_name %>.</p>
-    <form action="/kiosk" method="POST">
-        <select name="passType" required>
-            <option value="">Select Pass Type</option>
-            <option value="round">Round Trip(There and back)</option>
-            <option value="oneWay">Oneway(Just there)</option>
-            <option value="appoint">Appointment(For a future date)</option>
-        </select>
-        <br>
-        <select name="passDest" required>##This should end up touching db for all destinations than display list in dropdown
-            <option value="">Select Destination</option>
-            <option value="destination1">Destination 1</option>
-            <option value="destination2">Destination 2</option>
-        </select>
-        <br>
-        <button type="submit">Generate Pass</button>
-    </form>
-<% } else { %>
-    <p>Please log in to access kiosk features.</p>
-<% } %>
+<section class="kiosk-page">
+  <div class="kiosk-heading">
+    <div>
+      <p class="kiosk-kicker">Student movement</p>
+      <h1><%= kiosk.name %></h1>
+      <p class="kiosk-subtitle">Scan a student ID to request a pass or record a return.</p>
+    </div>
+    <div class="kiosk-status"><span></span> Ready</div>
+  </div>
+
+  <% if (message) { %>
+    <div class="kiosk-message kiosk-message-<%= message.type %>" role="status"><%= message.text %></div>
+  <% } %>
+
+  <div class="kiosk-grid">
+    <section class="kiosk-panel kiosk-scan-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Identify student</h2>
+          <p>Use the barcode scanner or type the student ID.</p>
+        </div>
+      </div>
+      <form method="post" action="/kiosk/scan" class="kiosk-form kiosk-scan-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="kioskCode" value="<%= kioskCode %>">
+        <label for="studentNumber">Student ID</label>
+        <div class="scan-input-wrap">
+          <span class="scan-icon" aria-hidden="true">#</span>
+          <input id="studentNumber" name="studentNumber" value="<%= form.studentNumber || '' %>" required autofocus autocomplete="off" inputmode="numeric" placeholder="Scan barcode">
+        </div>
+        <button type="submit" class="primary-button">Continue</button>
+      </form>
+      <p class="scanner-note">A USB barcode scanner works like a keyboard. Keep this field focused.</p>
+    </section>
+
+    <% if (action === 'create' || student) { %>
+      <section class="kiosk-panel kiosk-destination-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Choose destination</h2>
+            <p>Student: <strong><%= student.display_name %></strong></p>
+          </div>
+        </div>
+        <form method="post" action="/kiosk/pass" class="kiosk-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="kioskCode" value="<%= kioskCode %>">
+          <input type="hidden" name="studentNumber" value="<%= student.student_number || form.studentNumber || '' %>">
+          <label for="studentName">Confirm full name</label>
+          <input id="studentName" name="studentName" value="<%= student.display_name || form.studentName || '' %>" required autocomplete="off">
+          <label for="destinationLocationId">Destination</label>
+          <select id="destinationLocationId" name="destinationLocationId" required>
+            <option value="">Select a location</option>
+            <% destinations.forEach((destination) => { %>
+              <option value="<%= destination.id %>" <%= form.destinationLocationId === destination.id ? 'selected' : '' %>>
+                <%= destination.name %><%= destination.teacher_name ? ` - ${destination.teacher_name}` : '' %>
+              </option>
+            <% }) %>
+          </select>
+          <button type="submit" class="primary-button">Request teacher approval</button>
+        </form>
+      </section>
+    <% } %>
+  </div>
+</section>

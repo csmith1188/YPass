@@ -54,6 +54,26 @@ export function requirePermission(permissionName) {
   };
 }
 
+/**
+ * Restrict a route to the email addresses configured in MANAGERS.
+ * An empty allowlist denies access to everyone.
+ * @param {string[]} managerEmails
+ */
+export function requireManager(managerEmails) {
+  return (req, res, next) => {
+    if (!req.session?.userId) {
+      next(new AuthenticationError());
+      return;
+    }
+    const email = req.currentUser?.primary_email?.trim().toLowerCase();
+    if (!email || !managerEmails.includes(email)) {
+      next(new AuthorizationError());
+      return;
+    }
+    next();
+  };
+}
+
 function wantsJson(req) {
   const path = req.originalUrl || req.path || '';
   return path.startsWith('/api/') || req.xhr || /\bapplication\/json\b/i.test(req.get('accept') || '');

@@ -1,12 +1,46 @@
-<h1>Lehrerseite</h1>
-<p>This is the Teacher page.</p>
-<select name="activePass" id="activePass">#needs to go to db to get all active passes to/from the current teacher and display in dropdown
-    <option value="">Active Passes</option>
-    <option value="pass1">Pass 1</option>
-    <option value="pass2">Pass 2</option>
-</select>
-<select name="passHistory" id="passHistory">#needs to go to db to get canceled/closed passes to/from the current teacher and display in dropdown
-    <option value="">Pass History</option>
-    <option value="pass1">Pass 1</option>
-    <option value="pass2">Pass 2</option>
-</select>
+<section class="staff-page">
+  <div class="staff-heading">
+    <div>
+      <p class="kiosk-kicker">Staff workspace</p>
+      <h1>Teacher panel</h1>
+      <p class="muted">Review passes connected to your classroom locations.</p>
+    </div>
+    <a class="button" href="/teacher/appointment">Create appointment</a>
+  </div>
+
+  <% if (message) { %><p class="flash flash-success"><%= message %></p><% } %>
+  <section class="staff-section">
+    <h2>Passes involving your locations</h2>
+    <% if (!passes.length) { %>
+      <p class="muted">No passes are currently connected to your locations.</p>
+    <% } else { %>
+      <div class="staff-list">
+        <% passes.forEach((pass) => { %>
+          <article class="staff-row">
+            <div>
+              <strong><%= pass.student_name %></strong>
+              <span class="muted">ID <%= pass.student_number %></span>
+              <p><%= pass.origin_name %> to <%= pass.destination_name %> · <%= pass.status %></p>
+            </div>
+            <% if (!['completed', 'cancelled', 'expired'].includes(pass.status)) { %>
+              <div class="staff-actions">
+                <% if (pass.status === 'pending_approval') { %>
+                  <form method="post" action="/teacher/pass"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="passId" value="<%= pass.id %>"><input type="hidden" name="action" value="approve"><button type="submit">Approve</button></form>
+                <% } %>
+                <form method="post" action="/teacher/pass"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="passId" value="<%= pass.id %>"><input type="hidden" name="action" value="cancel"><button type="submit" class="danger-button">Cancel</button></form>
+              </div>
+            <% } %>
+          </article>
+        <% }) %>
+      </div>
+    <% } %>
+  </section>
+
+  <section class="staff-section">
+    <h2>Your appointments</h2>
+    <% if (!appointments.length) { %><p class="muted">No appointments.</p><% } %>
+    <% appointments.forEach((appointment) => { %>
+      <article class="staff-row"><div><strong><%= appointment.student_name %></strong><span class="muted"> ID <%= appointment.student_number %></span><p><%= appointment.origin_name %> to <%= appointment.destination_name %> · <%= appointment.scheduled_at %></p></div><span class="status-label"><%= appointment.status %></span></article>
+    <% }) %>
+  </section>
+</section>

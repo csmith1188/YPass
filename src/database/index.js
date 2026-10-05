@@ -3,7 +3,7 @@
  */
 
 import knexFactory from 'knex';
-import { DatabaseError } from '#errors';
+import { AppError, DatabaseError } from '#errors';
 import { buildKnexConfig, createSqlJsKnex } from './knex-config.js';
 
 /**
@@ -38,6 +38,9 @@ export async function createDatabase(config, logger) {
       try {
         return await client.transaction(fn);
       } catch (error) {
+        if (error instanceof AppError) {
+          throw error;
+        }
         throw new DatabaseError('Transaction failed', error instanceof Error ? error.message : error);
       }
     },
