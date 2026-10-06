@@ -141,7 +141,34 @@ export function createWebController(container) {
         next(error);
       }
     },
+    async createManagerStudent(req, res, next) {
+      return managerMutation(req, res, next, () => passService.createManagerStudent(req.body));
+    },
+    async updateManagerStudent(req, res, next) {
+      return managerMutation(req, res, next, () => passService.updateManagerStudent(req.body));
+    },
+    async createManagerLocation(req, res, next) {
+      return managerMutation(req, res, next, () => passService.createManagerLocation(req.body));
+    },
+    async updateManagerLocation(req, res, next) {
+      return managerMutation(req, res, next, () => passService.updateManagerLocation(req.body));
+    },
+    async createManagerKiosk(req, res, next) {
+      return managerMutation(req, res, next, () => passService.createManagerKiosk(req.body));
+    },
+    async updateManagerKiosk(req, res, next) {
+      return managerMutation(req, res, next, () => passService.updateManagerKiosk(req.body));
+    },
   };
+
+  async function managerMutation(req, res, next, action) {
+    try {
+      await action();
+      res.redirect('/manager');
+    } catch (error) {
+      next(error);
+    }
+  }
 
   function renderKiosk(res, data, status = 200) {
     res.status(status).render('pages/kiosk', {

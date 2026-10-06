@@ -3,7 +3,17 @@ import { createWebController } from '#controllers/web-controller.js';
 import { requireAuthentication, requireManager } from '#middleware/auth.js';
 import { validate } from '#middleware/validate.js';
 import { createPassRequestSchema, kioskScanSchema } from '#validators/pass.js';
-import { appointmentSchema, managerFilterSchema, passActionSchema } from '#validators/staff.js';
+import {
+  appointmentSchema,
+  managerFilterSchema,
+  managerKioskCreateSchema,
+  managerKioskUpdateSchema,
+  managerLocationCreateSchema,
+  managerLocationUpdateSchema,
+  managerStudentCreateSchema,
+  managerStudentUpdateSchema,
+  passActionSchema,
+} from '#validators/staff.js';
 
 export function createWebRouter(container) {
   const router = Router();
@@ -18,5 +28,12 @@ export function createWebRouter(container) {
   router.post('/kiosk/scan', requireAuthentication(), validate(kioskScanSchema), controller.scanKiosk);
   router.post('/kiosk/pass', requireAuthentication(), validate(createPassRequestSchema), controller.createKioskPass);
   router.get('/manager', requireAuthentication(), requireManager(container.config.managers), validate(managerFilterSchema, 'query'), controller.manager);
+  const manager = [requireAuthentication(), requireManager(container.config.managers)];
+  router.post('/manager/students/create', ...manager, validate(managerStudentCreateSchema), controller.createManagerStudent);
+  router.post('/manager/students/update', ...manager, validate(managerStudentUpdateSchema), controller.updateManagerStudent);
+  router.post('/manager/locations/create', ...manager, validate(managerLocationCreateSchema), controller.createManagerLocation);
+  router.post('/manager/locations/update', ...manager, validate(managerLocationUpdateSchema), controller.updateManagerLocation);
+  router.post('/manager/kiosks/create', ...manager, validate(managerKioskCreateSchema), controller.createManagerKiosk);
+  router.post('/manager/kiosks/update', ...manager, validate(managerKioskUpdateSchema), controller.updateManagerKiosk);
   return router;
 }

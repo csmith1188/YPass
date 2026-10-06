@@ -248,7 +248,11 @@ export function createPassRepository(db) {
         .join('locations as destination', 'passes.destination_location_id', 'destination.id')
         .leftJoin('appointments', 'passes.appointment_id', 'appointments.id')
         .select('passes.*', 'students.student_number', 'students.display_name as student_name', 'origin.name as origin_name', 'destination.name as destination_name', 'appointments.scheduled_at as appointment_scheduled_at');
-      if (filters.status) query.where('passes.status', filters.status);
+      if (filters.status === 'timedout') {
+        query.whereIn('passes.status', ['active', 'arrived']).whereNotNull('passes.timeout_at').where('passes.timeout_at', '<=', filters.now);
+      } else if (filters.status) {
+        query.where('passes.status', filters.status);
+      }
       if (filters.studentNumber) query.where('students.student_number', filters.studentNumber);
       return query.orderBy('passes.requested_at', 'desc');
     },
@@ -261,6 +265,57 @@ export function createPassRepository(db) {
       if (filters.appointmentStatus) query.where('appointments.status', filters.appointmentStatus);
       if (filters.studentNumber) query.where('students.student_number', filters.studentNumber);
       return query.orderBy('appointments.scheduled_at', 'desc');
+    },
+    async listManagerStudents(trx = knex) {
+      return trx('students').orderBy('display_name');
+    },
+    async findStudentById(id, trx = knex) {
+      return trx('students').where({ id }).first();
+    },
+    async createStudent(student, trx = knex) {
+      await trx('students').insert(student);
+      return student;
+    },
+    async updateStudent(id, patch, trx = knex) {
+      await trx('students').where({ id }).update({ ...patch, updated_at: trx.fn.now() });
+    },
+    async listManagerLocations(trx = knex) {
+      return trx('locations')
+        .leftJoin('users', 'locations.teacher_user_id', 'users.id')
+        .select('locations.*', 'users.display_name as teacher_name')
+        .orderBy('locations.name');
+    },
+    async findLocationById(id, trx = knex) {
+      return trx('locations').where({ id }).first();
+    },
+    async findLocationByName(name, trx = knex) {
+      return trx('locations').whereRaw('lower(name) = ?', [name.toLowerCase()]).first();
+    },
+    async createLocation(location, trx = knex) {
+      await trx('locations').insert(location);
+      return location;
+    },
+    async updateLocation(id, patch, trx = knex) {
+      await trx('locations').where({ id }).update({ ...patch, updated_at: trx.fn.now() });
+    },
+    async listManagerKiosks(trx = knex) {
+      return trx('kiosks').join('locations', 'kiosks.location_id', 'locations.id').select('kiosks.*', 'locations.name as location_name').orderBy('kiosks.name');
+    },
+    async findKioskById(id, trx = knex) {
+      return trx('kiosks').where({ id }).first();
+    },
+    async findKioskByKioskCode(kioskCode, trx = knex) {
+      return trx('kiosks').where({ kiosk_code: kioskCode }).first();
+    },
+    async createKiosk(kiosk, trx = knex) {
+      await trx('kiosks').insert(kiosk);
+      return kiosk;
+    },
+    async updateKiosk(id, patch, trx = knex) {
+      await trx('kiosks').where({ id }).update({ ...patch, updated_at: trx.fn.now() });
+    },
+    async listManagerUsers(trx = knex) {
+      return trx('users').where({ status: 'active' }).orderBy('display_name').select('id', 'display_name', 'primary_email');
     },
   };
 }

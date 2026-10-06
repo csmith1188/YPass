@@ -176,19 +176,75 @@ export function createPassService({ db, passes, clock }) {
   }
 
   async function managerDashboard(filters = {}) {
-    const [passRows, appointmentRows] = await Promise.all([
-      passesRepository.listManagerPasses(filters),
+    const now = clock.now();
+    const [passRows, appointmentRows, students, locations, kiosks, users] = await Promise.all([
+      passesRepository.listManagerPasses({ ...filters, now }),
       passesRepository.listManagerAppointments(filters),
+      passesRepository.listManagerStudents(),
+      passesRepository.listManagerLocations(),
+      passesRepository.listManagerKiosks(),
+      passesRepository.listManagerUsers(),
     ]);
-    return { passes: passRows, appointments: appointmentRows, filters };
+    const passesWithTimeoutStatus = passRows.map((pass) => ({
+      ...pass,
+      display_status: isTimedOut(pass, now) ? 'timedout' : pass.status,
+    }));
+    return { passes: passesWithTimeoutStatus, appointments: appointmentRows, filters, students, locations, kiosks, users };
+  }
+
+  async function createManagerStudent({ studentNumber, studentName, status }) {
+    if (await passesRepository.findStudentByNumber(studentNumber)) throw new ConflictError('A student with that ID already exists');
+    return passesRepository.createStudent({ id: randomUUID(), student_number: studentNumber, display_name: studentName, status });
+  }
+
+  async function updateManagerStudent({ id, studentNumber, studentName, status }) {
+    const student = await passesRepository.findStudentById(id);
+    if (!student) throw new NotFoundError('Student not found');
+    const existing = await passesRepository.findStudentByNumber(studentNumber);
+    if (existing && existing.id !== id) throw new ConflictError('A student with that ID already exists');
+    await passesRepository.updateStudent(id, { student_number: studentNumber, display_name: studentName, status });
+  }
+
+  async function createManagerLocation({ name, type, teacherUserId, active }) {
+    if (await passesRepository.findLocationByName(name)) throw new ConflictError('A location with that name already exists');
+    return passesRepository.createLocation({ id: randomUUID(), name, type, teacher_user_id: teacherUserId || null, active });
+  }
+
+  async function updateManagerLocation({ id, name, type, teacherUserId, active }) {
+    if (!(await passesRepository.findLocationById(id))) throw new NotFoundError('Location not found');
+    const existing = await passesRepository.findLocationByName(name);
+    if (existing && existing.id !== id) throw new ConflictError('A location with that name already exists');
+    await passesRepository.updateLocation(id, { name, type, teacher_user_id: teacherUserId || null, active });
+  }
+
+  async function createManagerKiosk({ name, kioskCode, locationId, active }) {
+    if (!(await passesRepository.findLocationById(locationId))) throw new ValidationError('Choose a valid location');
+    if (await passesRepository.findKioskByKioskCode(kioskCode)) throw new ConflictError('A kiosk with that code already exists');
+    return passesRepository.createKiosk({ id: randomUUID(), name, kiosk_code: kioskCode, location_id: locationId, active });
+  }
+
+  async function updateManagerKiosk({ id, name, kioskCode, locationId, active }) {
+    if (!(await passesRepository.findKioskById(id))) throw new NotFoundError('Kiosk not found');
+    if (!(await passesRepository.findLocationById(locationId))) throw new ValidationError('Choose a valid location');
+    const existing = await passesRepository.findKioskByKioskCode(kioskCode);
+    if (existing && existing.id !== id) throw new ConflictError('A kiosk with that code already exists');
+    await passesRepository.updateKiosk(id, { name, kiosk_code: kioskCode, location_id: locationId, active });
   }
 
   const passesRepository = passes;
-  return { kioskOptions, scanStudent, requestPass, teacherDashboard, approvePass, cancelPass, appointmentOptions, createAppointment, managerDashboard };
+  return {
+    kioskOptions, scanStudent, requestPass, teacherDashboard, approvePass, cancelPass, appointmentOptions, createAppointment,
+    managerDashboard, createManagerStudent, updateManagerStudent, createManagerLocation, updateManagerLocation,
+    createManagerKiosk, updateManagerKiosk,
+  };
 }
 
 function isBathroom(location) {
   return location.type === 'bathroom' || /bathroom|restroom|toilet/i.test(location.name);
+}
+
+function isTimedOut(pass, now) {
+  return ['active', 'arrived'].includes(pass.status) && pass.timeout_at && new Date(pass.timeout_at) <= now;
 }
 
 function transitionForScan(pass, kioskLocationId) {
