@@ -24,6 +24,7 @@ export const managerFilterSchema = z.object({
   status: z.string().trim().max(32).optional(),
   appointmentStatus: z.string().trim().max(32).optional(),
   studentNumber: z.string().trim().max(64).optional(),
+  enrollmentCode: z.string().trim().max(16).optional(),
 });
 
 const active = z.enum(['true', 'false']).transform((value) => value === 'true');
@@ -49,8 +50,22 @@ export const managerLocationUpdateSchema = managerLocationCreateSchema.extend({ 
 export const managerKioskCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   kioskCode: z.string().trim().min(1).max(64),
+  kioskSecret: z.string().trim().min(16).max(255).optional().or(z.literal('')),
   locationId: managerId,
   active,
+  type: z.enum(['TEACHER', 'ROUND_TRIP']).default('ROUND_TRIP'),
   _csrf: z.string().optional(),
 });
 export const managerKioskUpdateSchema = managerKioskCreateSchema.extend({ id: managerId });
+
+export const managerEnrollmentCodeSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  locationId: managerId,
+  type: z.enum(['TEACHER', 'ROUND_TRIP']),
+  _csrf: z.string().optional(),
+});
+
+export const managerKioskCredentialRotationSchema = z.object({
+  kioskId: managerId,
+  _csrf: z.string().optional(),
+});

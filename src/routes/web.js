@@ -8,6 +8,8 @@ import {
   managerFilterSchema,
   managerKioskCreateSchema,
   managerKioskUpdateSchema,
+  managerEnrollmentCodeSchema,
+  managerKioskCredentialRotationSchema,
   managerLocationCreateSchema,
   managerLocationUpdateSchema,
   managerStudentCreateSchema,
@@ -21,19 +23,87 @@ export function createWebRouter(container) {
   router.get('/', controller.home);
   router.get('/example', requireAuthentication(), controller.example);
   router.get('/teacher', requireAuthentication(), controller.teacher);
-  router.post('/teacher/pass', requireAuthentication(), validate(passActionSchema), controller.teacherAction);
+  router.post(
+    '/teacher/pass',
+    requireAuthentication(),
+    validate(passActionSchema),
+    controller.teacherAction,
+  );
   router.get('/teacher/appointment', requireAuthentication(), controller.appointment);
-  router.post('/teacher/appointment', requireAuthentication(), validate(appointmentSchema), controller.createAppointment);
+  router.post(
+    '/teacher/appointment',
+    requireAuthentication(),
+    validate(appointmentSchema),
+    controller.createAppointment,
+  );
   router.get('/kiosk', requireAuthentication(), controller.kiosk);
-  router.post('/kiosk/scan', requireAuthentication(), validate(kioskScanSchema), controller.scanKiosk);
-  router.post('/kiosk/pass', requireAuthentication(), validate(createPassRequestSchema), controller.createKioskPass);
-  router.get('/manager', requireAuthentication(), requireManager(container.config.managers), validate(managerFilterSchema, 'query'), controller.manager);
+  router.post(
+    '/kiosk/scan',
+    requireAuthentication(),
+    validate(kioskScanSchema),
+    controller.scanKiosk,
+  );
+  router.post(
+    '/kiosk/pass',
+    requireAuthentication(),
+    validate(createPassRequestSchema),
+    controller.createKioskPass,
+  );
+  router.get(
+    '/manager',
+    requireAuthentication(),
+    requireManager(container.config.managers),
+    validate(managerFilterSchema, 'query'),
+    controller.manager,
+  );
   const manager = [requireAuthentication(), requireManager(container.config.managers)];
-  router.post('/manager/students/create', ...manager, validate(managerStudentCreateSchema), controller.createManagerStudent);
-  router.post('/manager/students/update', ...manager, validate(managerStudentUpdateSchema), controller.updateManagerStudent);
-  router.post('/manager/locations/create', ...manager, validate(managerLocationCreateSchema), controller.createManagerLocation);
-  router.post('/manager/locations/update', ...manager, validate(managerLocationUpdateSchema), controller.updateManagerLocation);
-  router.post('/manager/kiosks/create', ...manager, validate(managerKioskCreateSchema), controller.createManagerKiosk);
-  router.post('/manager/kiosks/update', ...manager, validate(managerKioskUpdateSchema), controller.updateManagerKiosk);
+  router.post(
+    '/manager/students/create',
+    ...manager,
+    validate(managerStudentCreateSchema),
+    controller.createManagerStudent,
+  );
+  router.post(
+    '/manager/students/update',
+    ...manager,
+    validate(managerStudentUpdateSchema),
+    controller.updateManagerStudent,
+  );
+  router.post(
+    '/manager/locations/create',
+    ...manager,
+    validate(managerLocationCreateSchema),
+    controller.createManagerLocation,
+  );
+  router.post(
+    '/manager/locations/update',
+    ...manager,
+    validate(managerLocationUpdateSchema),
+    controller.updateManagerLocation,
+  );
+  router.post(
+    '/manager/kiosks/create',
+    ...manager,
+    validate(managerKioskCreateSchema),
+    controller.createManagerKiosk,
+  );
+  router.post(
+    '/manager/kiosks/update',
+    ...manager,
+    validate(managerKioskUpdateSchema),
+    controller.updateManagerKiosk,
+  );
+  router.post(
+    '/manager/kiosks/enrollment-codes/create',
+    ...manager,
+    validate(managerEnrollmentCodeSchema),
+    controller.createManagerEnrollmentCode,
+  );
+  router.post(
+    '/manager/kiosks/credentials/regenerate',
+    ...manager,
+    validate(managerKioskCredentialRotationSchema),
+    controller.regenerateManagerKioskCredentials,
+  );
   return router;
 }

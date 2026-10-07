@@ -25,13 +25,41 @@ export function loadConfig(env = process.env) {
   const port = Number(env.KIOSK_PORT ?? 4177);
   const heartbeatMs = Number(env.KIOSK_HEARTBEAT_MS ?? 15000);
 
+  const stored = readStoredConfig();
   return {
-    kioskCode: env.KIOSK_CODE ?? 'KSK-000',
-    kioskName: env.KIOSK_NAME ?? 'Hall Pass Kiosk',
-    kioskLocation: env.KIOSK_LOCATION ?? 'Unknown Location',
-    kioskSecret: env.KIOSK_SECRET ?? 'change-me',
-    serverUrl: env.KIOSK_SERVER_URL ?? 'http://localhost:3000',
+    kioskCode: env.KIOSK_CODE || stored.kioskCode || '',
+    kioskName: env.KIOSK_NAME || stored.kioskName || 'Hall Pass Kiosk',
+    kioskLocation: env.KIOSK_LOCATION || stored.kioskLocation || 'Unknown Location',
+    kioskSecret: env.KIOSK_SECRET || stored.kioskSecret || '',
+    serverUrl: env.KIOSK_SERVER_URL || stored.serverUrl || '',
     port: Number.isFinite(port) ? port : 4177,
     heartbeatMs: Number.isFinite(heartbeatMs) ? heartbeatMs : 15000,
+    registered: Boolean(env.KIOSK_CODE || stored.kioskCode),
   };
+}
+
+export function saveEnrolledConfig(config) {
+  const storedPath = path.join(projectRoot, 'kiosk-config.json');
+  fs.writeFileSync(
+    storedPath,
+    JSON.stringify(
+      {
+        kioskCode: config.kioskCode,
+        kioskSecret: config.kioskSecret,
+        serverUrl: config.serverUrl,
+      },
+      null,
+      2,
+    ),
+    { encoding: 'utf8', mode: 0o600 },
+  );
+}
+
+function readStoredConfig() {
+  const storedPath = path.join(projectRoot, 'kiosk-config.json');
+  try {
+    return JSON.parse(fs.readFileSync(storedPath, 'utf8'));
+  } catch (_error) {
+    return {};
+  }
 }

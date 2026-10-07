@@ -6,6 +6,11 @@ const lastHeartbeat = document.getElementById('lastHeartbeat');
 const connectionBadge = document.getElementById('connectionBadge');
 const scanForm = document.getElementById('scanForm');
 const requestPassButton = document.getElementById('requestPassButton');
+const enrollmentPanel = document.getElementById('enrollmentPanel');
+const enrollmentForm = document.getElementById('enrollmentForm');
+const serverUrlInput = document.getElementById('serverUrl');
+let kioskOptions = [];
+let registered = false;
 
 function setStatus(message, tone = 'ok') {
   statusPanel.className = `status ${tone}`;
@@ -20,7 +25,12 @@ async function loadConfig() {
     kioskCode.textContent = data.kioskCode || '--';
     kioskLocation.textContent = data.kioskLocation || '--';
     connectionBadge.textContent = 'Online';
-    setStatus('Kiosk ready. Please identify the student.', 'ok');
+    registered = Boolean(data.registered);
+    serverUrlInput.value = data.serverUrl || serverUrlInput.value;
+    enrollmentPanel.hidden = registered;
+    scanForm.hidden = !registered;
+    setStatus(registered ? 'Kiosk ready. Please identify the student.' : 'Registration required.', registered ? 'ok' : 'warn');
+    if (registered) await loadOptions();
     return data;
   } catch (_error) {
     connectionBadge.textContent = 'Offline';
@@ -29,7 +39,27 @@ async function loadConfig() {
   }
 }
 
+async function loadOptions() {
+  try {
+    const response = await fetch('/api/options');
+    const data = await response.json();
+    kioskOptions = data.destinations || [];
+    const destination = document.getElementById('destination');
+    destination.replaceChildren(
+      ...kioskOptions.map((item) => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.teacher_name ? `${item.teacher_name} - ${item.name}` : item.name;
+        return option;
+      }),
+    );
+  } catch (_error) {
+    setStatus('Unable to load destinations from YPass.', 'warn');
+  }
+}
+
 async function sendHeartbeat() {
+  if (!registered) return false;
   try {
     const response = await fetch('/api/heartbeat', {
       method: 'POST',
@@ -50,13 +80,34 @@ async function sendHeartbeat() {
   return false;
 }
 
+enrollmentForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formData = new FormData(enrollmentForm);
+  const enrollmentCode = formData.get('enrollmentCode');
+  const serverUrl = formData.get('serverUrl');
+  try {
+    const response = await fetch('/api/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enrollmentCode, serverUrl, softwareVersion: '1.0.0' }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Registration failed.');
+    setStatus(`Registration successful for ${result.kioskCode}. Connecting to YPass...`, 'ok');
+    await loadConfig();
+    await sendHeartbeat();
+  } catch (error) {
+    setStatus(error.message, 'warn');
+  }
+});
+
 scanForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(scanForm);
   const payload = {
     studentNumber: formData.get('studentNumber'),
     studentName: formData.get('studentName'),
-    destination: formData.get('destination'),
+    destinationLocationId: formData.get('destination'),
   };
 
   const response = await fetch('/api/scan', {
@@ -74,7 +125,7 @@ requestPassButton.addEventListener('click', async () => {
   const payload = {
     studentNumber: formData.get('studentNumber'),
     studentName: formData.get('studentName'),
-    destination: formData.get('destination'),
+    destinationLocationId: formData.get('destination'),
   };
 
   const response = await fetch('/api/request-pass', {

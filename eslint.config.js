@@ -16,7 +16,14 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['src/**/*.js', 'scripts/**/*.js', 'tests/**/*.js', 'tools/**/*.js', 'kioskMachine/src/**/*.js', 'knexfile.js'],
+    files: [
+      'src/**/*.js',
+      'scripts/**/*.js',
+      'tests/**/*.js',
+      'tools/**/*.js',
+      'kioskMachine/src/**/*.js',
+      'knexfile.js',
+    ],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',

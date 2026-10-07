@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildHeartbeatPayload, buildKioskHeaders, normaliseServerStatus } from '../src/kiosk-client.js';
+import {
+  buildHeartbeatPayload,
+  buildKioskHeaders,
+  normaliseServerStatus,
+} from '../src/kiosk-client.js';
 
 test('buildKioskHeaders includes kiosk auth values', () => {
   const headers = buildKioskHeaders({ kioskCode: 'KSK-204', kioskSecret: 'super-secret' });
@@ -22,7 +26,11 @@ test('buildHeartbeatPayload records the kiosk status and code', () => {
 });
 
 test('normaliseServerStatus preserves connection details', () => {
-  const status = normaliseServerStatus({ ok: true, server: 'https://api.example.test', kiosk: 'KSK-204' });
+  const status = normaliseServerStatus({
+    ok: true,
+    server: 'https://api.example.test',
+    kiosk: 'KSK-204',
+  });
 
   assert.equal(status.ok, true);
   assert.equal(status.server, 'https://api.example.test');

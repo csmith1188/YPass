@@ -15,7 +15,9 @@
         --success: #22c55e;
         --warning: #f59e0b;
       }
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
         font-family: Arial, Helvetica, sans-serif;
@@ -28,8 +30,8 @@
       .shell {
         width: min(900px, 90vw);
         padding: 24px;
-        background: rgba(17,24,39,0.9);
-        border: 1px solid rgba(148,163,184,0.35);
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.35);
         border-radius: 18px;
         box-shadow: 0 16px 40px rgba(15, 23, 42, 0.5);
       }
@@ -45,7 +47,7 @@
         align-items: center;
         padding: 8px 12px;
         border-radius: 999px;
-        background: rgba(56,189,248,0.12);
+        background: rgba(56, 189, 248, 0.12);
         color: var(--accent);
         font-weight: 700;
       }
@@ -55,8 +57,8 @@
         gap: 20px;
       }
       .panel {
-        background: rgba(31,41,55,0.94);
-        border: 1px solid rgba(148,163,184,0.2);
+        background: rgba(31, 41, 55, 0.94);
+        border: 1px solid rgba(148, 163, 184, 0.2);
         border-radius: 14px;
         padding: 18px;
       }
@@ -68,12 +70,14 @@
         color: var(--muted);
         margin-bottom: 8px;
       }
-      input, select, button {
+      input,
+      select,
+      button {
         width: 100%;
         margin-bottom: 12px;
         border-radius: 10px;
-        border: 1px solid rgba(148,163,184,0.3);
-        background: rgba(15,23,42,0.8);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: rgba(15, 23, 42, 0.8);
         color: var(--text);
         padding: 12px 14px;
         font-size: 1rem;
@@ -91,20 +95,26 @@
         margin-top: 10px;
         padding: 12px;
         border-radius: 10px;
-        background: rgba(15,23,42,0.85);
+        background: rgba(15, 23, 42, 0.85);
         color: var(--muted);
       }
       .status strong {
         color: var(--text);
       }
-      .ok { border-left: 4px solid var(--success); }
-      .warn { border-left: 4px solid var(--warning); }
+      .ok {
+        border-left: 4px solid var(--success);
+      }
+      .warn {
+        border-left: 4px solid var(--warning);
+      }
       ul {
         margin: 0.5rem 0 0 1rem;
         color: var(--muted);
       }
       @media (max-width: 760px) {
-        .grid { grid-template-columns: 1fr; }
+        .grid {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -113,15 +123,26 @@
       <div class="header">
         <div>
           <div class="badge" id="kioskBadge">Loading kiosk…</div>
-          <h1 style="margin: 10px 0 0;">Hall Pass Kiosk</h1>
+          <h1 style="margin: 10px 0 0">Hall Pass Kiosk</h1>
         </div>
         <div class="badge" id="connectionBadge">Checking connection…</div>
       </div>
 
       <div class="grid">
+        <section class="panel" id="enrollmentPanel" hidden>
+          <h2>Register this kiosk</h2>
+          <p>This kiosk must be registered before student check-in is available.</p>
+          <form id="enrollmentForm">
+            <label for="enrollmentCode">Enrollment code</label>
+            <input id="enrollmentCode" name="enrollmentCode" placeholder="7K4P-92MX" autocomplete="off" required />
+            <label for="serverUrl">YPass server URL</label>
+            <input id="serverUrl" name="serverUrl" placeholder="https://ypass.school.edu" type="url" required />
+            <button type="submit">Register kiosk</button>
+          </form>
+        </section>
         <section class="panel">
           <h2>Student check-in</h2>
-          <form id="scanForm">
+          <form id="scanForm" hidden>
             <label for="studentNumber">Student ID</label>
             <input id="studentNumber" name="studentNumber" placeholder="10001" required />
 
@@ -130,16 +151,15 @@
 
             <label for="destination">Destination</label>
             <select id="destination" name="destination">
-              <option value="Counseling Office">Counseling Office</option>
-              <option value="Nurse">Nurse</option>
-              <option value="Library">Library</option>
-              <option value="Main Office">Main Office</option>
+              <option value="">Loading destinations...</option>
             </select>
 
             <button type="submit">Scan student</button>
             <button type="button" class="secondary" id="requestPassButton">Request pass</button>
           </form>
-          <div class="status" id="statusPanel"><strong>Idle.</strong> Ready for student check-in.</div>
+          <div class="status" id="statusPanel">
+            <strong>Idle.</strong> Ready for student check-in.
+          </div>
         </section>
 
         <aside class="panel">

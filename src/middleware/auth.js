@@ -76,5 +76,7 @@ export function requireManager(managerEmails) {
 
 function wantsJson(req) {
   const path = req.originalUrl || req.path || '';
-  return path.startsWith('/api/') || req.xhr || /\bapplication\/json\b/i.test(req.get('accept') || '');
+  return (
+    path.startsWith('/api/') || req.xhr || /\bapplication\/json\b/i.test(req.get('accept') || '')
+  );
 }

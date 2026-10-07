@@ -3,6 +3,11 @@ import { z } from 'zod';
 const kioskCode = z.string().trim().min(1).max(64);
 const studentNumber = z.string().trim().min(1).max(64);
 
+export const kioskEnrollmentSchema = z.object({
+  enrollmentCode: z.string().trim().min(9).max(16),
+  softwareVersion: z.string().trim().max(64).optional(),
+});
+
 export const kioskScanSchema = z.object({
   kioskCode,
   studentNumber,

@@ -27,7 +27,7 @@ export function normaliseServerStatus(serverState = {}) {
 }
 
 export async function sendHeartbeat({ serverUrl, config, fetchImpl = globalThis.fetch }) {
-  const response = await fetchImpl(new URL('/api/kiosk/heartbeat', serverUrl).toString(), {
+  const response = await fetchImpl(new URL('/api/v1/kiosks/heartbeat', serverUrl).toString(), {
     method: 'POST',
     headers: buildKioskHeaders(config),
     body: JSON.stringify(buildHeartbeatPayload(config)),
@@ -41,4 +41,37 @@ export async function sendHeartbeat({ serverUrl, config, fetchImpl = globalThis.
     status: response.ok ? 'online' : 'offline',
     message: data.message ?? (response.ok ? 'heartbeat received' : 'heartbeat failed'),
   });
+}
+
+export async function enrollKiosk({ serverUrl, enrollmentCode, softwareVersion, fetchImpl = globalThis.fetch }) {
+  const response = await fetchImpl(new URL('/api/v1/kiosks/enroll', serverUrl).toString(), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ enrollmentCode, softwareVersion }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error?.message || data.message || 'Kiosk enrollment failed');
+  }
+  return data;
+}
+
+export async function callKioskApi({
+  serverUrl,
+  config,
+  path,
+  payload,
+  method = 'POST',
+  fetchImpl = globalThis.fetch,
+}) {
+  const response = await fetchImpl(new URL(`/api/v1/kiosks/${path}`, serverUrl).toString(), {
+    method,
+    headers: buildKioskHeaders(config),
+    ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error?.message || data.message || 'Central YPass request failed');
+  }
+  return data.data;
 }

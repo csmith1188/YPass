@@ -2,7 +2,8 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from './config.js';
+import { loadConfig, saveEnrolledConfig } from './config.js';
+import { callKioskApi, enrollKiosk, sendHeartbeat } from './kiosk-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,40 +63,83 @@ export async function createKioskServer(options = {}) {
 
     if (req.method === 'GET' && url.pathname === '/api/config') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        kioskCode: config.kioskCode,
-        kioskName: config.kioskName,
-        kioskLocation: config.kioskLocation,
-        status: 'online',
-      }));
+      res.end(
+        JSON.stringify({
+          kioskCode: config.kioskCode,
+          kioskName: config.kioskName,
+          kioskLocation: config.kioskLocation,
+          serverUrl: config.serverUrl,
+          status: 'online',
+          registered: config.registered,
+        }),
+      );
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/enroll') {
+      const payload = await readRequestBody(req);
+      try {
+        const result = await enrollKiosk({
+          serverUrl: String(payload.serverUrl || config.serverUrl),
+          enrollmentCode: String(payload.enrollmentCode || ''),
+          softwareVersion: String(payload.softwareVersion || 'unknown'),
+        });
+        Object.assign(config, {
+          kioskCode: result.kiosk.code,
+          kioskSecret: result.credentials.secret,
+          serverUrl: result.serverUrl || config.serverUrl,
+          registered: true,
+        });
+        saveEnrolledConfig(config);
+        sendJson(res, { ok: true, kioskCode: config.kioskCode });
+      } catch (error) {
+        sendJson(res, { ok: false, message: error.message }, 400);
+      }
       return;
     }
 
     if (req.method === 'GET' && url.pathname === '/api/health') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        ok: true,
-        kioskCode: config.kioskCode,
-        location: config.kioskLocation,
-        status: 'online',
-        lastHeartbeatAt: state.lastHeartbeatAt,
-      }));
+      res.end(
+        JSON.stringify({
+          ok: true,
+          kioskCode: config.kioskCode,
+          location: config.kioskLocation,
+          status: 'online',
+          lastHeartbeatAt: state.lastHeartbeatAt,
+        }),
+      );
       return;
     }
 
     if (req.method === 'POST' && url.pathname === '/api/heartbeat') {
+      if (!config.registered) {
+        sendJson(res, { ok: false, status: 'unregistered', message: 'Kiosk is not registered.' }, 409);
+        return;
+      }
       await readRequestBody(req);
-      state.lastHeartbeatAt = new Date().toISOString();
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        ok: true,
-        kioskCode: config.kioskCode,
-        location: config.kioskLocation,
-        status: 'online',
-        server: config.serverUrl,
-        timestamp: state.lastHeartbeatAt,
-        message: 'Heartbeat received by kiosk app.',
-      }));
+      try {
+        const result = await sendHeartbeat({ serverUrl: config.serverUrl, config });
+        state.lastHeartbeatAt = result.timestamp || new Date().toISOString();
+        sendJson(res, { ok: result.ok, ...result });
+      } catch (error) {
+        sendJson(res, { ok: false, status: 'offline', message: error.message }, 502);
+      }
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/options') {
+      try {
+        const result = await callKioskApi({
+          serverUrl: config.serverUrl,
+          config,
+          path: 'options',
+          method: 'GET',
+        });
+        sendJson(res, { ok: true, ...result });
+      } catch (error) {
+        sendJson(res, { ok: false, message: error.message }, 502);
+      }
       return;
     }
 
@@ -105,37 +149,37 @@ export async function createKioskServer(options = {}) {
       const studentName = String(payload.studentName || '').trim();
 
       state.lastStudent = { studentNumber, studentName, scannedAt: new Date().toISOString() };
-      const message = studentNumber && studentName
-        ? `${studentName} (${studentNumber}) is ready to scan.`
-        : 'Student identifier is required.';
-
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        ok: true,
-        action: 'scan_received',
-        student: { studentNumber, studentName },
-        message,
-      }));
+      try {
+        const result = await callKioskApi({
+          serverUrl: config.serverUrl,
+          config,
+          path: 'scan',
+          payload: { studentNumber, studentName },
+        });
+        sendJson(res, { ok: true, ...result });
+      } catch (error) {
+        sendJson(res, { ok: false, message: error.message }, 400);
+      }
       return;
     }
 
     if (req.method === 'POST' && url.pathname === '/api/request-pass') {
       const payload = await readRequestBody(req);
-      const destination = String(payload.destination || '').trim() || 'Teacher location';
+      const destinationLocationId = String(payload.destinationLocationId || '').trim();
       const studentNumber = String(payload.studentNumber || '').trim();
       const studentName = String(payload.studentName || '').trim();
 
-      state.lastStudent = { studentNumber, studentName, destination, requestedAt: new Date().toISOString() };
-
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({
-        ok: true,
-        action: 'pass_requested',
-        status: 'pending_approval',
-        student: { studentNumber, studentName },
-        destination,
-        message: `Pass requested for ${studentName} to ${destination}. Awaiting teacher approval.`,
-      }));
+      try {
+        const result = await callKioskApi({
+          serverUrl: config.serverUrl,
+          config,
+          path: 'request-pass',
+          payload: { studentNumber, studentName, destinationLocationId },
+        });
+        sendJson(res, { ok: true, ...result });
+      } catch (error) {
+        sendJson(res, { ok: false, message: error.message }, 400);
+      }
       return;
     }
 
@@ -160,8 +204,16 @@ export async function createKioskServer(options = {}) {
     server,
     config,
     state,
-    close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
+    close: () =>
+      new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      ),
   };
+}
+
+function sendJson(res, body, status = 200) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(body));
 }
 
 if (process.argv[1] === __filename) {
