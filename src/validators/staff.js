@@ -65,6 +65,14 @@ export const managerEnrollmentCodeSchema = z.object({
   _csrf: z.string().optional(),
 });
 
+export const managerEnrollmentCompleteSchema = z.object({
+  enrollmentCode: z.string().trim().min(9).max(16),
+  name: z.string().trim().min(1).max(120),
+  locationId: managerId,
+  type: z.enum(['TEACHER', 'ROUND_TRIP']),
+  _csrf: z.string().optional(),
+});
+
 export const managerKioskCredentialRotationSchema = z.object({
   kioskId: managerId,
   _csrf: z.string().optional(),

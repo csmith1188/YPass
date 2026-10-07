@@ -8,6 +8,14 @@ export const kioskEnrollmentSchema = z.object({
   softwareVersion: z.string().trim().max(64).optional(),
 });
 
+export const kioskEnrollmentStartSchema = z.object({
+  softwareVersion: z.string().trim().max(64).optional(),
+});
+
+export const kioskEnrollmentStatusSchema = z.object({
+  enrollmentCode: z.string().trim().min(9).max(16),
+});
+
 export const kioskScanSchema = z.object({
   kioskCode,
   studentNumber,

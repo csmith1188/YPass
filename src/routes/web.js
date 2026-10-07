@@ -9,6 +9,7 @@ import {
   managerKioskCreateSchema,
   managerKioskUpdateSchema,
   managerEnrollmentCodeSchema,
+  managerEnrollmentCompleteSchema,
   managerKioskCredentialRotationSchema,
   managerLocationCreateSchema,
   managerLocationUpdateSchema,
@@ -98,6 +99,12 @@ export function createWebRouter(container) {
     ...manager,
     validate(managerEnrollmentCodeSchema),
     controller.createManagerEnrollmentCode,
+  );
+  router.post(
+    '/manager/kiosks/enrollment/complete',
+    ...manager,
+    validate(managerEnrollmentCompleteSchema),
+    controller.completeManagerEnrollment,
   );
   router.post(
     '/manager/kiosks/credentials/regenerate',

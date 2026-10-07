@@ -201,6 +201,9 @@ export function createPassRepository(db) {
     async listEnrollmentCodes(trx = knex) {
       return trx('kiosk_enrollment_codes').orderBy('created_at', 'desc');
     },
+    async findEnrollmentCodeById(id, trx = knex) {
+      return trx('kiosk_enrollment_codes').where({ id }).first();
+    },
     async listDestinations(originLocationId, trx = knex) {
       return trx('locations')
         .leftJoin('users', 'locations.teacher_user_id', 'users.id')

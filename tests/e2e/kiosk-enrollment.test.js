@@ -47,4 +47,33 @@ describe('kiosk enrollment', () => {
     });
     expect(replay.status).toBe(409);
   });
+
+  it('lets an unconfigured kiosk start enrollment and receive credentials after manager completion', async () => {
+    ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
+    const started = await ctx.request.post('/api/v1/kiosks/enrollment/start').send({
+      softwareVersion: '2.0.0',
+    });
+    expect(started.status).toBe(201);
+    expect(started.body.enrollmentCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+
+    const location = await ctx.container.db.knex('locations').first();
+    const completed = await ctx.container.kioskService.completeEnrollment({
+      enrollmentCode: started.body.enrollmentCode,
+      name: 'Automatic Kiosk',
+      locationId: location.id,
+      type: 'ROUND_TRIP',
+      reqLike: { requestId: 'test', serverUrl: 'http://central.test' },
+    });
+    expect(completed.kiosk.code).toMatch(/^KIOSK-/);
+
+    const delivered = await ctx.container.kioskService.enrollmentStatus({
+      enrollmentCode: started.body.enrollmentCode,
+    });
+    expect(delivered.status).toBe('complete');
+    expect(delivered.credentials.secret).toHaveLength(64);
+    const replay = await ctx.container.kioskService.enrollmentStatus({
+      enrollmentCode: started.body.enrollmentCode,
+    });
+    expect(replay.status).toBe('registered');
+  });
 });

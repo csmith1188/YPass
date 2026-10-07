@@ -37,6 +37,30 @@ export function createApiController(container) {
         next(error);
       }
     },
+    async kioskEnrollmentStart(req, res, next) {
+      try {
+        const result = await kioskService.startEnrollment(req.body);
+        res.status(201).json({ success: true, ...result });
+      } catch (error) {
+        next(error);
+      }
+    },
+    async kioskEnrollmentStatus(req, res, next) {
+      try {
+        const result = await kioskService.enrollmentStatus(req.query);
+        res.json({ success: true, ...result });
+      } catch (error) {
+        next(error);
+      }
+    },
+    async kioskEnrollmentComplete(req, res, next) {
+      try {
+        const result = await kioskService.completeEnrollment({ ...req.body, reqLike: req });
+        res.status(201).json({ success: true, ...result });
+      } catch (error) {
+        next(error);
+      }
+    },
     async kioskHeartbeat(req, res, next) {
       try {
         const now = container.clock.now();

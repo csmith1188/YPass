@@ -215,6 +215,14 @@ export function createWebController(container) {
         next(error);
       }
     },
+    async completeManagerEnrollment(req, res, next) {
+      try {
+        await kioskService.completeEnrollment({ ...req.body, reqLike: req });
+        res.redirect('/manager');
+      } catch (error) {
+        next(error);
+      }
+    },
     async regenerateManagerKioskCredentials(req, res, next) {
       try {
         const result = await kioskService.createCredentialRegenerationCode({
