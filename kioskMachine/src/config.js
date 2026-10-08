@@ -23,7 +23,7 @@ export function loadConfig(env = process.env) {
   }
 
   const port = Number(env.KIOSK_PORT ?? 4177);
-  const heartbeatMs = Number(env.KIOSK_HEARTBEAT_MS ?? 15000);
+  const heartbeatMs = Number(env.KIOSK_HEARTBEAT_MS ?? 30000);
 
   const stored = readStoredConfig();
   return {
@@ -33,7 +33,7 @@ export function loadConfig(env = process.env) {
     kioskSecret: env.KIOSK_SECRET || stored.kioskSecret || '',
     serverUrl: env.KIOSK_SERVER_URL || stored.serverUrl || '',
     port: Number.isFinite(port) ? port : 4177,
-    heartbeatMs: Number.isFinite(heartbeatMs) ? heartbeatMs : 15000,
+    heartbeatMs: Number.isFinite(heartbeatMs) ? heartbeatMs : 30000,
     registered: Boolean(env.KIOSK_CODE || stored.kioskCode),
   };
 }

@@ -7,8 +7,9 @@ const connectionBadge = document.getElementById('connectionBadge');
 const scanForm = document.getElementById('scanForm');
 const requestPassButton = document.getElementById('requestPassButton');
 const enrollmentPanel = document.getElementById('enrollmentPanel');
-const enrollmentForm = document.getElementById('enrollmentForm');
 const serverUrlInput = document.getElementById('serverUrl');
+const enrollmentCodeDisplay = document.getElementById('enrollmentCodeDisplay');
+const enrollmentExpiry = document.getElementById('enrollmentExpiry');
 let kioskOptions = [];
 let registered = false;
 
@@ -29,6 +30,10 @@ async function loadConfig() {
     serverUrlInput.value = data.serverUrl || serverUrlInput.value;
     enrollmentPanel.hidden = registered;
     scanForm.hidden = !registered;
+    enrollmentCodeDisplay.textContent = data.enrollmentCode || 'Connecting...';
+    enrollmentExpiry.textContent = data.enrollmentCode
+      ? 'Waiting for registration in YPass Manager...'
+      : 'Unable to connect. Retrying...';
     setStatus(registered ? 'Kiosk ready. Please identify the student.' : 'Registration required.', registered ? 'ok' : 'warn');
     if (registered) await loadOptions();
     return data;
@@ -36,6 +41,23 @@ async function loadConfig() {
     connectionBadge.textContent = 'Offline';
     setStatus('Unable to reach kiosk service.', 'warn');
     return null;
+  }
+}
+
+async function pollEnrollment() {
+  if (registered) return;
+  try {
+    const response = await fetch('/api/enrollment/status');
+    const result = await response.json();
+    if (result.ok && result.status === 'complete') {
+      setStatus('Registration successful. Connecting to YPass...', 'ok');
+      await loadConfig();
+      await sendHeartbeat();
+    } else if (!response.ok) {
+      setStatus(result.message || 'Unable to connect to YPass. Retrying...', 'warn');
+    }
+  } catch (_error) {
+    setStatus('Unable to connect to YPass. Retrying...', 'warn');
   }
 }
 
@@ -80,27 +102,6 @@ async function sendHeartbeat() {
   return false;
 }
 
-enrollmentForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const formData = new FormData(enrollmentForm);
-  const enrollmentCode = formData.get('enrollmentCode');
-  const serverUrl = formData.get('serverUrl');
-  try {
-    const response = await fetch('/api/enroll', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enrollmentCode, serverUrl, softwareVersion: '1.0.0' }),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.message || 'Registration failed.');
-    setStatus(`Registration successful for ${result.kioskCode}. Connecting to YPass...`, 'ok');
-    await loadConfig();
-    await sendHeartbeat();
-  } catch (error) {
-    setStatus(error.message, 'warn');
-  }
-});
-
 scanForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const formData = new FormData(scanForm);
@@ -140,4 +141,6 @@ requestPassButton.addEventListener('click', async () => {
 
 loadConfig();
 sendHeartbeat();
+pollEnrollment();
 setInterval(sendHeartbeat, 15000);
+setInterval(pollEnrollment, 3000);

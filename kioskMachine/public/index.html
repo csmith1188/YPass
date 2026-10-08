@@ -131,14 +131,11 @@
       <div class="grid">
         <section class="panel" id="enrollmentPanel" hidden>
           <h2>Register this kiosk</h2>
-          <p>This kiosk must be registered before student check-in is available.</p>
-          <form id="enrollmentForm">
-            <label for="enrollmentCode">Enrollment code</label>
-            <input id="enrollmentCode" name="enrollmentCode" placeholder="7K4P-92MX" autocomplete="off" required />
-            <label for="serverUrl">YPass server URL</label>
-            <input id="serverUrl" name="serverUrl" placeholder="https://ypass.school.edu" type="url" required />
-            <button type="submit">Register kiosk</button>
-          </form>
+          <p>Enter this enrollment code in YPass Manager to register the kiosk.</p>
+          <p><strong id="enrollmentCodeDisplay">Connecting...</strong></p>
+          <p id="enrollmentExpiry">Waiting for registration...</p>
+          <label for="serverUrl">YPass server URL</label>
+          <input id="serverUrl" name="serverUrl" placeholder="https://ypass.school.edu" type="url" readonly />
         </section>
         <section class="panel">
           <h2>Student check-in</h2>

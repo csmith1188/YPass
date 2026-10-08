@@ -56,6 +56,30 @@ export async function enrollKiosk({ serverUrl, enrollmentCode, softwareVersion, 
   return data;
 }
 
+export async function startKioskEnrollment({ serverUrl, softwareVersion, fetchImpl = globalThis.fetch }) {
+  const response = await fetchImpl(new URL('/api/v1/kiosks/enrollment/start', serverUrl), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ softwareVersion }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message || 'Unable to start kiosk enrollment');
+  return data;
+}
+
+export async function getKioskEnrollmentStatus({ serverUrl, enrollmentCode, fetchImpl = globalThis.fetch }) {
+  const url = new URL('/api/v1/kiosks/enrollment/status', serverUrl);
+  url.searchParams.set('enrollmentCode', enrollmentCode);
+  const response = await fetchImpl(url);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error?.message || 'Unable to check kiosk enrollment');
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
 export async function callKioskApi({
   serverUrl,
   config,

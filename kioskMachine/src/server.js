@@ -3,7 +3,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, saveEnrolledConfig } from './config.js';
-import { callKioskApi, enrollKiosk, sendHeartbeat } from './kiosk-client.js';
+import {
+  callKioskApi,
+  enrollKiosk,
+  getKioskEnrollmentStatus,
+  sendHeartbeat,
+  startKioskEnrollment,
+} from './kiosk-client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,12 +62,28 @@ export async function createKioskServer(options = {}) {
   const state = {
     lastHeartbeatAt: null,
     lastStudent: null,
+    enrollmentExpiresAt: null,
   };
+
+  async function ensureEnrollment() {
+    if (config.registered || config.enrollmentCode || !config.serverUrl) return;
+    try {
+      const result = await startKioskEnrollment({
+        serverUrl: config.serverUrl,
+        softwareVersion: '1.0.0',
+      });
+      config.enrollmentCode = result.enrollmentCode;
+      state.enrollmentExpiresAt = result.expiresAt;
+    } catch (_error) {
+      // The browser will show the connection failure and retry on its next poll.
+    }
+  }
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
     if (req.method === 'GET' && url.pathname === '/api/config') {
+      await ensureEnrollment();
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(
         JSON.stringify({
@@ -71,8 +93,42 @@ export async function createKioskServer(options = {}) {
           serverUrl: config.serverUrl,
           status: 'online',
           registered: config.registered,
+          enrollmentCode: config.enrollmentCode || null,
+          enrollmentExpiresAt: state.enrollmentExpiresAt,
         }),
       );
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/enrollment/status') {
+      if (!config.enrollmentCode) await ensureEnrollment();
+      if (!config.enrollmentCode) {
+        sendJson(res, { ok: false, status: 'offline', message: 'Unable to connect to YPass.' }, 502);
+        return;
+      }
+      try {
+        const result = await getKioskEnrollmentStatus({
+          serverUrl: config.serverUrl,
+          enrollmentCode: config.enrollmentCode,
+        });
+        if (result.status === 'complete') {
+          Object.assign(config, {
+            kioskCode: result.kiosk.code,
+            kioskSecret: result.credentials.secret,
+            serverUrl: result.serverUrl || config.serverUrl,
+            registered: true,
+            enrollmentCode: null,
+          });
+          saveEnrolledConfig(config);
+        }
+        sendJson(res, { ok: true, ...result });
+      } catch (error) {
+        if (error.status === 404) {
+          config.enrollmentCode = null;
+          await ensureEnrollment();
+        }
+        sendJson(res, { ok: false, status: 'offline', message: error.message }, error.status || 502);
+      }
       return;
     }
 
