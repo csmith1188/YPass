@@ -135,38 +135,25 @@
           <p><strong id="enrollmentCodeDisplay">Connecting...</strong></p>
           <p id="enrollmentExpiry">Waiting for registration...</p>
           <label for="serverUrl">YPass server URL</label>
-          <input id="serverUrl" name="serverUrl" placeholder="https://ypass.school.edu" type="url" readonly />
+          <input
+            id="serverUrl"
+            name="serverUrl"
+            placeholder="https://ypass.school.edu"
+            type="url"
+            readonly
+          />
         </section>
-        <section class="panel">
-          <h2>Student check-in</h2>
-          <form id="scanForm" hidden>
-            <label for="studentNumber">Student ID</label>
-            <input id="studentNumber" name="studentNumber" placeholder="10001" required />
-
-            <label for="studentName">Student name</label>
-            <input id="studentName" name="studentName" placeholder="Jordan Test" required />
-
-            <label for="destination">Destination</label>
-            <select id="destination" name="destination">
-              <option value="">Loading destinations...</option>
-            </select>
-
-            <button type="submit">Scan student</button>
-            <button type="button" class="secondary" id="requestPassButton">Request pass</button>
-          </form>
-          <div class="status" id="statusPanel">
-            <strong>Idle.</strong> Ready for student check-in.
-          </div>
-        </section>
-
         <aside class="panel">
           <h2>Machine status</h2>
           <ul>
             <li><strong>Kiosk:</strong> <span id="kioskCode">--</span></li>
             <li><strong>Location:</strong> <span id="kioskLocation">--</span></li>
-            <li><strong>Last heartbeat:</strong> <span id="lastHeartbeat">--</span></li>
           </ul>
         </aside>
+      </div>
+
+      <div class="status" id="statusPanel" role="status" aria-live="polite">
+        <strong>Status:</strong> Checking kiosk configuration...
       </div>
     </main>
 

@@ -432,6 +432,21 @@ export function createPassRepository(db) {
     async findKioskById(id, trx = knex) {
       return trx('kiosks').where({ id }).first();
     },
+    async findKioskByNameAtLocation(name, locationId, trx = knex) {
+      return trx('kiosks').where({ name, location_id: locationId }).first();
+    },
+    async findActiveKioskById(id, trx = knex) {
+      return trx('kiosks')
+        .join('locations', 'kiosks.location_id', 'locations.id')
+        .where({ 'kiosks.id': id, 'kiosks.active': true, 'locations.active': true })
+        .select(
+          'kiosks.*',
+          'locations.name as location_name',
+          'locations.type as location_type',
+          'locations.teacher_user_id as location_teacher_id',
+        )
+        .first();
+    },
     async findKioskByKioskCode(kioskCode, trx = knex) {
       return trx('kiosks').where({ kiosk_code: kioskCode }).first();
     },

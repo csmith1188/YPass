@@ -37,7 +37,10 @@ describe('kiosk enrollment', () => {
     expect(enrolled.status).toBe(201);
     expect(enrolled.body.success).toBe(true);
     expect(enrolled.body.credentials.secret).toHaveLength(64);
-    const kiosk = await ctx.container.db.knex('kiosks').where({ kiosk_code: enrolled.body.kiosk.code }).first();
+    const kiosk = await ctx.container.db
+      .knex('kiosks')
+      .where({ kiosk_code: enrolled.body.kiosk.code })
+      .first();
     expect(kiosk.secret_hash).not.toBe(enrolled.body.credentials.secret);
     expect(kiosk.software_version).toBe('1.2.3');
 
@@ -55,6 +58,7 @@ describe('kiosk enrollment', () => {
     });
     expect(started.status).toBe(201);
     expect(started.body.enrollmentCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    expect(started.body.enrollmentToken).toHaveLength(64);
 
     const location = await ctx.container.db.knex('locations').first();
     const completed = await ctx.container.kioskService.completeEnrollment({
@@ -68,12 +72,30 @@ describe('kiosk enrollment', () => {
 
     const delivered = await ctx.container.kioskService.enrollmentStatus({
       enrollmentCode: started.body.enrollmentCode,
+      enrollmentToken: started.body.enrollmentToken,
     });
     expect(delivered.status).toBe('complete');
     expect(delivered.credentials.secret).toHaveLength(64);
     const replay = await ctx.container.kioskService.enrollmentStatus({
       enrollmentCode: started.body.enrollmentCode,
+      enrollmentToken: started.body.enrollmentToken,
     });
     expect(replay.status).toBe('registered');
+  });
+
+  it('rejects a manager completion that duplicates a kiosk name at the location', async () => {
+    ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
+    const location = await ctx.container.db.knex('locations').first();
+    const existingKiosk = await ctx.container.db.knex('kiosks').where({ location_id: location.id }).first();
+    const started = await ctx.container.kioskService.startEnrollment({});
+
+    await expect(
+      ctx.container.kioskService.completeEnrollment({
+        enrollmentCode: started.enrollmentCode,
+        name: existingKiosk.name,
+        locationId: location.id,
+        type: 'ROUND_TRIP',
+      }),
+    ).rejects.toThrow('A kiosk with that name already exists at this location');
   });
 });

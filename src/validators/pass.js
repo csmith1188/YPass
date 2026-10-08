@@ -14,6 +14,7 @@ export const kioskEnrollmentStartSchema = z.object({
 
 export const kioskEnrollmentStatusSchema = z.object({
   enrollmentCode: z.string().trim().min(9).max(16),
+  enrollmentToken: z.string().trim().length(64),
 });
 
 export const kioskScanSchema = z.object({
@@ -22,6 +23,8 @@ export const kioskScanSchema = z.object({
   _csrf: z.string().optional(),
 });
 
+export const kioskSessionScanSchema = kioskScanSchema.omit({ kioskCode: true });
+
 export const createPassRequestSchema = z.object({
   kioskCode,
   studentNumber,
@@ -29,3 +32,5 @@ export const createPassRequestSchema = z.object({
   destinationLocationId: z.string().uuid(),
   _csrf: z.string().optional(),
 });
+
+export const kioskSessionPassSchema = createPassRequestSchema.omit({ kioskCode: true });

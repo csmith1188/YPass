@@ -73,6 +73,7 @@ export function createApiV1Router(container) {
     validate(kioskEnrollmentSchema),
     api.kioskEnroll,
   );
+  router.post('/kiosks/session', requireKiosk, api.kioskSession);
   router.get('/kiosks/options', requireKiosk, api.kioskOptions);
   router.post('/kiosks/heartbeat', requireKiosk, api.kioskHeartbeat);
   router.post('/kiosks/scan', requireKiosk, api.kioskScan);

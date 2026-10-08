@@ -32,9 +32,12 @@ export function loadConfig(env = process.env) {
     kioskLocation: env.KIOSK_LOCATION || stored.kioskLocation || 'Unknown Location',
     kioskSecret: env.KIOSK_SECRET || stored.kioskSecret || '',
     serverUrl: env.KIOSK_SERVER_URL || stored.serverUrl || '',
+    enrollmentToken: '',
     port: Number.isFinite(port) ? port : 4177,
     heartbeatMs: Number.isFinite(heartbeatMs) ? heartbeatMs : 30000,
-    registered: Boolean(env.KIOSK_CODE || stored.kioskCode),
+    registered: Boolean(
+      (env.KIOSK_CODE || stored.kioskCode) && (env.KIOSK_SECRET || stored.kioskSecret),
+    ),
   };
 }
 

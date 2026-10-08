@@ -96,8 +96,25 @@ export function createWebController(container) {
         next(error);
       }
     },
+    async kioskPass(req, res, next) {
+      try {
+        const options = await passService.kioskOptions(req.kiosk.kiosk_code);
+        renderKiosk(res, {
+          view: 'pages/pass',
+          kioskSession: true,
+          kioskCode: req.kiosk.kiosk_code,
+          ...options,
+          action: null,
+          student: null,
+          form: {},
+          message: null,
+        });
+      } catch (error) {
+        next(error);
+      }
+    },
     async scanKiosk(req, res, next) {
-      const kioskCode = req.body.kioskCode;
+      const kioskCode = req.kiosk?.kiosk_code || req.body.kioskCode;
       try {
         const result = await passService.scanStudent({
           kioskCode,
@@ -105,7 +122,13 @@ export function createWebController(container) {
           actorUserId: req.currentUser?.id,
         });
         const message = scanMessage(result);
-        renderKiosk(res, { ...result, kioskCode, form: {}, message });
+        renderKiosk(res, {
+          ...result,
+          kioskCode,
+          kioskSession: Boolean(req.kiosk),
+          form: {},
+          message,
+        });
       } catch (error) {
         if (!error.expose) {
           next(error);
@@ -118,6 +141,7 @@ export function createWebController(container) {
             {
               ...options,
               kioskCode,
+              kioskSession: Boolean(req.kiosk),
               form: req.body,
               message: { type: 'error', text: error.message },
             },
@@ -129,7 +153,7 @@ export function createWebController(container) {
       }
     },
     async createKioskPass(req, res, next) {
-      const kioskCode = req.body.kioskCode;
+      const kioskCode = req.kiosk?.kiosk_code || req.body.kioskCode;
       try {
         const result = await passService.requestPass({
           kioskCode,
@@ -141,6 +165,7 @@ export function createWebController(container) {
         renderKiosk(res, {
           ...result,
           kioskCode,
+          kioskSession: Boolean(req.kiosk),
           form: {},
           message: {
             type: 'success',
@@ -159,6 +184,7 @@ export function createWebController(container) {
             {
               ...options,
               kioskCode,
+              kioskSession: Boolean(req.kiosk),
               student: { display_name: req.body.studentName },
               form: req.body,
               message: { type: 'error', text: error.message },
@@ -247,7 +273,8 @@ export function createWebController(container) {
   }
 
   function renderKiosk(res, data, status = 200) {
-    res.status(status).render('pages/kiosk', {
+    const { view = 'pages/kiosk', ...viewData } = data;
+    res.status(status).render(view, {
       title: 'Student Pass Kiosk',
       currentUser: res.req.currentUser || null,
       action: null,
@@ -256,7 +283,8 @@ export function createWebController(container) {
       kiosk: null,
       form: {},
       message: null,
-      ...data,
+      kioskSession: false,
+      ...viewData,
     });
   }
 }

@@ -1,3 +1,5 @@
+import { regenerateSession } from '#middleware/session.js';
+
 export function createApiController(container) {
   const { passService, passRepository, kioskService } = container;
 
@@ -33,6 +35,24 @@ export function createApiController(container) {
           reqLike: { ...req, serverUrl: container.config.baseUrl },
         });
         res.status(201).json({ success: true, ...result });
+      } catch (error) {
+        next(error);
+      }
+    },
+    async kioskSession(req, res, next) {
+      try {
+        await regenerateSession(req, { kioskId: req.kiosk.id });
+        res.json({
+          data: {
+            kiosk: {
+              id: req.kiosk.id,
+              code: req.kiosk.kiosk_code,
+              name: req.kiosk.name,
+              location: req.kiosk.location_name,
+              type: req.kiosk.type,
+            },
+          },
+        });
       } catch (error) {
         next(error);
       }

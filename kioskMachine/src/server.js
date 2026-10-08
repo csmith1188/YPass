@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig, saveEnrolledConfig } from './config.js';
 import {
   callKioskApi,
+  establishKioskSession,
   enrollKiosk,
   getKioskEnrollmentStatus,
   sendHeartbeat,
@@ -45,6 +46,15 @@ function readRequestBody(req) {
   });
 }
 
+function readRawRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 async function serveStaticAsset(filePath, res) {
   try {
     const file = await fs.readFile(filePath);
@@ -63,6 +73,7 @@ export async function createKioskServer(options = {}) {
     lastHeartbeatAt: null,
     lastStudent: null,
     enrollmentExpiresAt: null,
+    centralSessionCookie: '',
   };
 
   async function ensureEnrollment() {
@@ -73,14 +84,106 @@ export async function createKioskServer(options = {}) {
         softwareVersion: '1.0.0',
       });
       config.enrollmentCode = result.enrollmentCode;
+      config.enrollmentToken = result.enrollmentToken;
       state.enrollmentExpiresAt = result.expiresAt;
     } catch (_error) {
       // The browser will show the connection failure and retry on its next poll.
     }
   }
 
+  async function ensureCentralSession() {
+    if (state.centralSessionCookie) return;
+    const session = await establishKioskSession({ serverUrl: config.serverUrl, config });
+    state.centralSessionCookie = session.cookieHeader;
+  }
+
+  async function proxyCentralPage(req, res) {
+    const body = req.method === 'GET' ? undefined : await readRawRequestBody(req);
+    try {
+      await ensureCentralSession();
+      let response = await fetch(new URL(req.url, config.serverUrl), {
+        method: req.method,
+        headers: {
+          ...(req.method === 'GET'
+            ? {}
+            : {
+                'content-type': req.headers['content-type'] || 'application/x-www-form-urlencoded',
+              }),
+          ...(state.centralSessionCookie ? { cookie: state.centralSessionCookie } : {}),
+        },
+        body,
+        redirect: 'manual',
+      });
+      rememberCentralCookies(response);
+      if (response.status === 401) {
+        state.centralSessionCookie = '';
+        await ensureCentralSession();
+        response = await fetch(new URL(req.url, config.serverUrl), {
+          method: req.method,
+          headers: {
+            ...(req.method === 'GET'
+              ? {}
+              : {
+                  'content-type':
+                    req.headers['content-type'] || 'application/x-www-form-urlencoded',
+                }),
+            cookie: state.centralSessionCookie,
+          },
+          body,
+          redirect: 'manual',
+        });
+        rememberCentralCookies(response);
+      }
+      const contentType = response.headers.get('content-type') || 'text/html; charset=utf-8';
+      if (response.status === 401) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(
+          '<!doctype html><title>Kiosk Disabled</title><h1>Kiosk Disabled</h1><p>Please contact an administrator.</p>',
+        );
+        return;
+      }
+      res.writeHead(response.status, { 'Content-Type': contentType });
+      res.end(await response.text());
+    } catch (error) {
+      if (error.status === 401) {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(
+          '<!doctype html><title>Kiosk Disabled</title><h1>Kiosk Disabled</h1><p>Please contact an administrator.</p>',
+        );
+        return;
+      }
+      sendJson(
+        res,
+        { ok: false, status: 'offline', message: 'YPass unavailable. Reconnecting...' },
+        502,
+      );
+    }
+  }
+
+  function rememberCentralCookies(response) {
+    const cookies = response.headers.getSetCookie?.() || [];
+    for (const cookie of cookies) {
+      const pair = cookie.split(';', 1)[0];
+      const name = pair.split('=', 1)[0];
+      const current = state.centralSessionCookie
+        .split('; ')
+        .filter((item) => item && !item.startsWith(`${name}=`));
+      current.push(pair);
+      state.centralSessionCookie = current.join('; ');
+    }
+  }
+
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+    if (
+      ['/kiosk/pass', '/kiosk/scan'].includes(url.pathname) ||
+      url.pathname.startsWith('/css/') ||
+      url.pathname.startsWith('/js/')
+    ) {
+      await proxyCentralPage(req, res);
+      return;
+    }
 
     if (req.method === 'GET' && url.pathname === '/api/config') {
       await ensureEnrollment();
@@ -103,13 +206,18 @@ export async function createKioskServer(options = {}) {
     if (req.method === 'GET' && url.pathname === '/api/enrollment/status') {
       if (!config.enrollmentCode) await ensureEnrollment();
       if (!config.enrollmentCode) {
-        sendJson(res, { ok: false, status: 'offline', message: 'Unable to connect to YPass.' }, 502);
+        sendJson(
+          res,
+          { ok: false, status: 'offline', message: 'Unable to connect to YPass.' },
+          502,
+        );
         return;
       }
       try {
         const result = await getKioskEnrollmentStatus({
           serverUrl: config.serverUrl,
           enrollmentCode: config.enrollmentCode,
+          enrollmentToken: config.enrollmentToken,
         });
         if (result.status === 'complete') {
           Object.assign(config, {
@@ -118,6 +226,7 @@ export async function createKioskServer(options = {}) {
             serverUrl: result.serverUrl || config.serverUrl,
             registered: true,
             enrollmentCode: null,
+            enrollmentToken: '',
           });
           saveEnrolledConfig(config);
         }
@@ -127,7 +236,11 @@ export async function createKioskServer(options = {}) {
           config.enrollmentCode = null;
           await ensureEnrollment();
         }
-        sendJson(res, { ok: false, status: 'offline', message: error.message }, error.status || 502);
+        sendJson(
+          res,
+          { ok: false, status: 'offline', message: error.message },
+          error.status || 502,
+        );
       }
       return;
     }
@@ -170,7 +283,11 @@ export async function createKioskServer(options = {}) {
 
     if (req.method === 'POST' && url.pathname === '/api/heartbeat') {
       if (!config.registered) {
-        sendJson(res, { ok: false, status: 'unregistered', message: 'Kiosk is not registered.' }, 409);
+        sendJson(
+          res,
+          { ok: false, status: 'unregistered', message: 'Kiosk is not registered.' },
+          409,
+        );
         return;
       }
       await readRequestBody(req);
@@ -254,6 +371,16 @@ export async function createKioskServer(options = {}) {
     res.end('Not found');
   });
 
+  const heartbeatTimer = setInterval(async () => {
+    if (!config.registered) return;
+    try {
+      const result = await sendHeartbeat({ serverUrl: config.serverUrl, config });
+      state.lastHeartbeatAt = result.timestamp || new Date().toISOString();
+    } catch (_error) {
+      // The central server remains authoritative when the kiosk is offline.
+    }
+  }, config.heartbeatMs);
+
   await new Promise((resolve) => server.listen(config.port, resolve));
 
   return {
@@ -261,9 +388,10 @@ export async function createKioskServer(options = {}) {
     config,
     state,
     close: () =>
-      new Promise((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      ),
+      new Promise((resolve, reject) => {
+        clearInterval(heartbeatTimer);
+        server.close((error) => (error ? reject(error) : resolve()));
+      }),
   };
 }
 

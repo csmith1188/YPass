@@ -43,7 +43,33 @@ export async function sendHeartbeat({ serverUrl, config, fetchImpl = globalThis.
   });
 }
 
-export async function enrollKiosk({ serverUrl, enrollmentCode, softwareVersion, fetchImpl = globalThis.fetch }) {
+export async function establishKioskSession({ serverUrl, config, fetchImpl = globalThis.fetch }) {
+  const response = await fetchImpl(new URL('/api/v1/kiosks/session', serverUrl).toString(), {
+    method: 'POST',
+    headers: buildKioskHeaders(config),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error?.message || 'Unable to authenticate kiosk');
+    error.status = response.status;
+    throw error;
+  }
+  const cookies =
+    response.headers.getSetCookie?.() || getSetCookieFallback(response.headers.get('set-cookie'));
+  const cookieHeader = cookies.map((cookie) => cookie.split(';', 1)[0]).join('; ');
+  return { ...data.data, cookieHeader };
+}
+
+function getSetCookieFallback(header) {
+  return header ? header.split(/,\s*(?=[^;,=]+=[^;,]+)/) : [];
+}
+
+export async function enrollKiosk({
+  serverUrl,
+  enrollmentCode,
+  softwareVersion,
+  fetchImpl = globalThis.fetch,
+}) {
   const response = await fetchImpl(new URL('/api/v1/kiosks/enroll', serverUrl).toString(), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -56,7 +82,11 @@ export async function enrollKiosk({ serverUrl, enrollmentCode, softwareVersion, 
   return data;
 }
 
-export async function startKioskEnrollment({ serverUrl, softwareVersion, fetchImpl = globalThis.fetch }) {
+export async function startKioskEnrollment({
+  serverUrl,
+  softwareVersion,
+  fetchImpl = globalThis.fetch,
+}) {
   const response = await fetchImpl(new URL('/api/v1/kiosks/enrollment/start', serverUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -67,9 +97,15 @@ export async function startKioskEnrollment({ serverUrl, softwareVersion, fetchIm
   return data;
 }
 
-export async function getKioskEnrollmentStatus({ serverUrl, enrollmentCode, fetchImpl = globalThis.fetch }) {
+export async function getKioskEnrollmentStatus({
+  serverUrl,
+  enrollmentCode,
+  enrollmentToken,
+  fetchImpl = globalThis.fetch,
+}) {
   const url = new URL('/api/v1/kiosks/enrollment/status', serverUrl);
   url.searchParams.set('enrollmentCode', enrollmentCode);
+  url.searchParams.set('enrollmentToken', enrollmentToken);
   const response = await fetchImpl(url);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import { createWebController } from '#controllers/web-controller.js';
-import { requireAuthentication, requireManager } from '#middleware/auth.js';
+import { requireAuthentication, requireKioskSession, requireManager } from '#middleware/auth.js';
 import { validate } from '#middleware/validate.js';
-import { createPassRequestSchema, kioskScanSchema } from '#validators/pass.js';
+import {
+  createPassRequestSchema,
+  kioskScanSchema,
+  kioskSessionPassSchema,
+  kioskSessionScanSchema,
+} from '#validators/pass.js';
 import {
   appointmentSchema,
   managerFilterSchema,
@@ -38,16 +43,29 @@ export function createWebRouter(container) {
     controller.createAppointment,
   );
   router.get('/kiosk', requireAuthentication(), controller.kiosk);
+  router.get('/kiosk/pass', requireKioskSession(container), controller.kioskPass);
   router.post(
     '/kiosk/scan',
-    requireAuthentication(),
-    validate(kioskScanSchema),
+    (req, _res, next) =>
+      req.session?.kioskId
+        ? requireKioskSession(container)(req, _res, next)
+        : requireAuthentication()(req, _res, next),
+    (req, _res, next) =>
+      validate(req.session?.kioskId ? kioskSessionScanSchema : kioskScanSchema)(req, _res, next),
     controller.scanKiosk,
   );
   router.post(
     '/kiosk/pass',
-    requireAuthentication(),
-    validate(createPassRequestSchema),
+    (req, _res, next) =>
+      req.session?.kioskId
+        ? requireKioskSession(container)(req, _res, next)
+        : requireAuthentication()(req, _res, next),
+    (req, _res, next) =>
+      validate(req.session?.kioskId ? kioskSessionPassSchema : createPassRequestSchema)(
+        req,
+        _res,
+        next,
+      ),
     controller.createKioskPass,
   );
   router.get(
