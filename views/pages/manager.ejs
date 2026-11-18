@@ -329,7 +329,7 @@
             <div class="pass-details">
               <div class="passes-footer-wrap">
                 <div>Appointment</div>
-                <h4 class="small-muted"><span data-language-ignore><%= appointment.origin_name || 'Unassigned' %> → <%= appointment.destination_name || 'Unassigned' %></span></h4>
+                <h4 class="small-muted"><span data-language-ignore><span data-language-ignore><%= appointment.destination_name %></span></h4>
               </div>
             </div>
             <span class="status-label appointment-status"><%= appointment.scheduled_at_display %></span>
@@ -341,10 +341,6 @@
   <% if (sisEnabled) { %>
     <div id="manager-panel-sis" class="manager-tab-panel" role="tabpanel" aria-labelledby="manager-tab-sis" tabindex="0" data-panel="sis">
       <section class="staff-section">
-        <div class="header-cont">
-          <img src="/images/gear.svg" width="20" height="20">
-          <h2>SIS integrations</h2>
-        </div>
         <form method="post" class="staff-form manager-form" data-sis-create>
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <label>

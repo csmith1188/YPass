@@ -15,7 +15,7 @@ describe('http skeleton', () => {
     ctx = await createTestApp();
     const res = await ctx.request.get('/');
     expect(res.status).toBe(200);
-    expect(res.text).toContain('Welcome to YPass');
+    expect(res.text).toContain('电子通行证');
     expect(res.headers['x-powered-by']).toBeUndefined();
     expect(res.headers['content-security-policy']).toBeTruthy();
   });
@@ -72,7 +72,7 @@ describe('http skeleton', () => {
 
     const teacherPage = await agent.get('/teacher');
     expect(teacherPage.status).toBe(200);
-    expect(teacherPage.text).toContain('Passes');
+    expect(teacherPage.text).toContain('教师页面');
   });
 
   it('redirects teacher pass actions before rendering the teacher page', async () => {
@@ -105,13 +105,9 @@ describe('http skeleton', () => {
       .knex('users')
       .where({ primary_email: 'teacher-action@example.test' })
       .first();
-    const origin = await ctx.container.db
-      .knex('locations')
-      .where({ name: 'Indoor Recess Weather Station' })
-      .first();
+    const origin = await ctx.container.db.knex('locations').where({ name: 'Main Office' }).first();
     const destination = await ctx.container.db
       .knex('locations')
-      .where({ active: true })
       .whereNot({ id: origin.id })
       .first();
     await ctx.container.db
@@ -119,7 +115,7 @@ describe('http skeleton', () => {
       .where({ id: origin.id })
       .update({ teacher_user_id: user.id });
     const requested = await ctx.container.passService.requestPass({
-      kioskCode: 'indoor-weather-station',
+      kioskCode: 'main-office',
       studentNumber: '111111',
       studentName: 'Test Student 111111',
       destinationLocationId: destination.id,

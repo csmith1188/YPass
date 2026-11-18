@@ -78,7 +78,7 @@
       </section>
     <% } %>
 
-    <% if (!markerKiosk && (action === 'create' || action === 'pending' || pass?.status === 'pending_approval')) { %>
+    <% if (action === 'create' || action === 'pending' || pass?.status === 'pending_approval') { %>
       <section class="kiosk-panel kiosk-destination-panel">
         <div class="panel-heading">
           <div>

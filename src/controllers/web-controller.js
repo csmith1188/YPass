@@ -566,7 +566,6 @@ export function createWebController(container) {
     form: {},
     message: null,
     kioskSession: false,
-    markerKiosk: false,
     appointmentPrompt: false,
     appointments: [],
     appointmentChoices: [],
@@ -576,9 +575,6 @@ export function createWebController(container) {
 }
 
 function scanMessage(result) {
-  if (result.action === 'marker') {
-    return { type: 'success', text: `Pass scan recorded for ${result.student.display_name}.` };
-  }
   if (result.action === 'create') {
     return { type: 'info', text: `Welcome, ${result.student.display_name}. Choose a destination.` };
   }

@@ -43,16 +43,17 @@ describe('kiosk pass flow', () => {
       });
     expect(loggedIn.status).toBe(302);
 
-    const kioskPage = await agent.get('/kiosk?kiosk=indoor-weather-station');
+    const kioskPage = await agent.get('/kiosk?kiosk=main-office');
     expect(kioskPage.status).toBe(200);
     expect(kioskPage.text).toContain('<body class="kiosk-layout">');
+    expect(kioskPage.text).not.toContain('class="site-header"');
     expect(kioskPage.text).not.toContain('class="site-footer"');
     const scan = await agent
       .post('/kiosk/scan')
       .type('form')
       .send({
         _csrf: extractCsrf(kioskPage.text),
-        kioskCode: 'indoor-weather-station',
+        kioskCode: 'main-office',
         studentNumber: student.student_number,
       });
     expect(scan.status).toBe(200);
@@ -75,7 +76,7 @@ describe('kiosk pass flow', () => {
       .type('form')
       .send({
         _csrf: extractCsrf(scan.text),
-        kioskCode: 'indoor-weather-station',
+        kioskCode: 'main-office',
         studentNumber: student.student_number,
         studentName: student.display_name,
         destinationLocationId: destination.id,
@@ -88,7 +89,7 @@ describe('kiosk pass flow', () => {
     expect(pass.text).toContain('id="lockedStudentNumber"');
     expect(pass.text).not.toContain('Request teacher approval');
 
-    const refreshed = await agent.get('/kiosk?kiosk=indoor-weather-station');
+    const refreshed = await agent.get('/kiosk?kiosk=main-office');
     expect(refreshed.status).toBe(200);
     expect(refreshed.text).toContain('Destination locked: waiting for teacher approval.');
 
@@ -97,7 +98,7 @@ describe('kiosk pass flow', () => {
       .type('form')
       .send({
         _csrf: extractCsrf(pass.text),
-        kioskCode: 'indoor-weather-station',
+        kioskCode: 'main-office',
         studentNumber: '222222',
         studentName: student.display_name,
         destinationLocationId: destination.id,
@@ -113,7 +114,7 @@ describe('kiosk pass flow', () => {
     ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
     const kiosk = await ctx.container.db
       .knex('kiosks')
-      .where({ kiosk_code: 'indoor-weather-station' })
+      .where({ kiosk_code: 'main-office' })
       .first();
 
     expect((await ctx.request.get('/kiosk/pass')).status).toBe(401);
@@ -262,10 +263,7 @@ describe('kiosk pass flow', () => {
       .knex('students')
       .where({ student_number: '111111' })
       .first();
-    const origin = await ctx.container.db
-      .knex('locations')
-      .where({ name: 'Indoor Recess Weather Station' })
-      .first();
+    const origin = await ctx.container.db.knex('locations').where({ name: 'Main Office' }).first();
     const destination = await ctx.container.db
       .knex('locations')
       .where({ type: 'round_trip' })
@@ -276,7 +274,7 @@ describe('kiosk pass flow', () => {
       .where({ location_id: destination.id })
       .first();
     const request = await ctx.container.passService.requestPass({
-      kioskCode: 'indoor-weather-station',
+      kioskCode: 'main-office',
       studentNumber: student.student_number,
       studentName: student.display_name,
       destinationLocationId: destination.id,
@@ -294,48 +292,19 @@ describe('kiosk pass flow', () => {
       studentNumber: student.student_number,
     });
 
-    const kioskPage = await agent.get('/kiosk?kiosk=indoor-weather-station');
+    const kioskPage = await agent.get('/kiosk?kiosk=main-office');
     const page = await agent
       .post('/kiosk/scan')
       .type('form')
       .send({
         _csrf: extractCsrf(kioskPage.text),
-        kioskCode: 'indoor-weather-station',
+        kioskCode: 'main-office',
         studentNumber: student.student_number,
       });
 
     expect(page.status).toBe(200);
     expect(page.text).toContain('Pass ended');
     expect(page.text).not.toContain('Choose destination');
-  });
-
-  it('does not show destination selection on a round-trip marker kiosk', async () => {
-    ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
-    const kiosk = await ctx.container.db
-      .knex('kiosks')
-      .where({ kiosk_code: 'main-office' })
-      .first();
-    const student = await ctx.container.db
-      .knex('students')
-      .where({ student_number: '111111' })
-      .first();
-    const agent = (await import('supertest')).default.agent(ctx.app);
-    const session = await agent
-      .post('/api/v1/kiosks/session')
-      .set('x-kiosk-code', kiosk.kiosk_code)
-      .set('x-kiosk-secret', 'change-me');
-    expect(session.status).toBe(200);
-
-    const page = await agent.get('/kiosk/pass');
-    const scan = await agent
-      .post('/kiosk/scan')
-      .type('form')
-      .send({ _csrf: extractCsrf(page.text), studentNumber: student.student_number });
-
-    expect(scan.status).toBe(200);
-    expect(scan.text).toContain('Pass scan recorded');
-    expect(scan.text).not.toContain('Choose destination');
-    expect(scan.text).not.toContain('id="destinationSearch"');
   });
 });
 
