@@ -100,6 +100,46 @@ describe('staff pass controls', () => {
     expect(options.destinations.map(({ id }) => id)).toContain(location.id);
   });
 
+  it('uses round-trip and bathroom kiosks only as pass markers', async () => {
+    ctx = await createTestApp();
+    const knex = ctx.container.db.knex;
+    const student = await knex('students').where({ student_number: '111111' }).first();
+    const roundTripKiosk = await knex('kiosks')
+      .join('locations', 'kiosks.location_id', 'locations.id')
+      .where('locations.type', 'round_trip')
+      .select('kiosks.*')
+      .first();
+    const bathroomKiosk = await knex('kiosks')
+      .join('locations', 'kiosks.location_id', 'locations.id')
+      .where('locations.type', 'bathroom')
+      .select('kiosks.*')
+      .first();
+
+    await expect(
+      ctx.container.passService.scanStudent({
+        kioskCode: roundTripKiosk.kiosk_code,
+        studentNumber: student.student_number,
+      }),
+    ).resolves.toMatchObject({
+      action: 'marker',
+      student: { id: student.id },
+      appointmentPrompt: false,
+      appointments: [],
+    });
+
+    await expect(
+      ctx.container.passService.requestPass({
+        kioskCode: bathroomKiosk.kiosk_code,
+        studentNumber: student.student_number,
+        studentName: student.display_name,
+        destinationLocationId: roundTripKiosk.location_id,
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'This kiosk can only record pass scans',
+    });
+  });
+
   it('marks manager-selected default locations in kiosk options', async () => {
     ctx = await createTestApp();
     const bathroom = await ctx.container.passService.createManagerLocation({
@@ -150,7 +190,9 @@ describe('staff pass controls', () => {
   it('notifies the origin teacher when a round-trip pass ends', async () => {
     ctx = await createTestApp();
     const knex = ctx.container.db.knex;
-    const mainOffice = await knex('locations').where({ name: 'Main Office' }).first();
+    const mainOffice = await knex('locations')
+      .where({ name: 'Indoor Recess Weather Station' })
+      .first();
     const teacherId = randomUUID();
     await knex('users').insert({
       id: teacherId,
@@ -177,7 +219,7 @@ describe('staff pass controls', () => {
     });
 
     const requested = await ctx.container.passService.requestPass({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: student.student_number,
       studentName: student.display_name,
       destinationLocationId: destination.id,
@@ -205,7 +247,7 @@ describe('staff pass controls', () => {
       ).action,
     ).toBe('scan_out');
     const ended = await ctx.container.passService.scanStudent({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: student.student_number,
     });
 
@@ -223,7 +265,9 @@ describe('staff pass controls', () => {
   it('notifies the origin teacher when an appointment pass starts', async () => {
     ctx = await createTestApp();
     const knex = ctx.container.db.knex;
-    const mainOffice = await knex('locations').where({ name: 'Main Office' }).first();
+    const mainOffice = await knex('locations')
+      .where({ name: 'Indoor Recess Weather Station' })
+      .first();
     const counseling = await knex('locations').where({ name: 'Counseling Office' }).first();
     const teacherId = randomUUID();
     const student = await knex('students').where({ student_number: '200001' }).first();
@@ -256,7 +300,7 @@ describe('staff pass controls', () => {
     });
 
     const started = await ctx.container.passService.requestPass({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: student.student_number,
       studentName: student.display_name,
       destinationLocationId: counseling.id,
@@ -307,7 +351,7 @@ describe('staff pass controls', () => {
     });
 
     const started = await ctx.container.passService.completeAppointmentForStudent({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: student.student_number,
       appointmentId,
     });
@@ -330,7 +374,9 @@ describe('staff pass controls', () => {
   it('notifies the origin teacher when a bathroom pass ends', async () => {
     ctx = await createTestApp();
     const knex = ctx.container.db.knex;
-    const mainOffice = await knex('locations').where({ name: 'Main Office' }).first();
+    const mainOffice = await knex('locations')
+      .where({ name: 'Indoor Recess Weather Station' })
+      .first();
     const teacherId = randomUUID();
     await knex('users').insert({
       id: teacherId,
@@ -355,7 +401,7 @@ describe('staff pass controls', () => {
     });
 
     const requested = await ctx.container.passService.requestPass({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: student.student_number,
       studentName: student.display_name,
       destinationLocationId: bathroom.id,
@@ -373,7 +419,7 @@ describe('staff pass controls', () => {
       studentNumber: student.student_number,
     });
     const ended = await ctx.container.passService.scanStudent({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: student.student_number,
     });
 
@@ -483,7 +529,7 @@ describe('staff pass controls', () => {
     await ctx.container.db.knex('users').insert(users);
     const mainOffice = await ctx.container.db
       .knex('locations')
-      .where({ name: 'Main Office' })
+      .where({ name: 'Indoor Recess Weather Station' })
       .first();
     const counseling = await ctx.container.db
       .knex('locations')
@@ -499,7 +545,7 @@ describe('staff pass controls', () => {
     const unassignedLocation = {
       id: randomUUID(),
       name: 'Unassigned Location',
-      type: 'round_trip',
+      type: 'one_way',
       teacher_user_id: null,
       active: true,
     };
@@ -513,7 +559,7 @@ describe('staff pass controls', () => {
     });
 
     const requested = await ctx.container.passService.requestPass({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: '111111',
       studentName: 'Test Student 111111',
       destinationLocationId: counseling.id,
@@ -548,7 +594,7 @@ describe('staff pass controls', () => {
       status: 'active',
     });
     const neverActive = await ctx.container.passService.requestPass({
-      kioskCode: 'main-office',
+      kioskCode: 'indoor-weather-station',
       studentNumber: '300001',
       studentName: 'Never Active Student',
       destinationLocationId: counseling.id,

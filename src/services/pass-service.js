@@ -92,12 +92,12 @@ export function createPassService({
     if (includeOccupancy) {
       await addBathroomOccupancy(kiosk, destinations);
     }
-    return { kiosk, destinations };
+    return { kiosk, destinations, markerKiosk: isMarkerKiosk(kiosk) };
   }
 
   async function kioskPendingPass({ kioskCode, studentNumber, passId }) {
     const result = await db.transaction(async (trx) => {
-      const { kiosk, destinations } = await kioskOptions(kioskCode, trx, false);
+      const { kiosk, destinations, markerKiosk } = await kioskOptions(kioskCode, trx, false);
       const student = await passes.findStudentByNumber(studentNumber, trx);
       if (!student) return null;
       const currentPass = await passes.findCurrentPassForStudent(student.id, trx);
@@ -106,7 +106,7 @@ export function createPassService({
       const destination = destinations.find(
         (item) => item.id === currentPass.destination_location_id,
       );
-      return { kiosk, destinations, student, destination, pass: currentPass };
+      return { kiosk, destinations, markerKiosk, student, destination, pass: currentPass };
     });
     if (result) await addBathroomOccupancy(result.kiosk, result.destinations);
     return result;
@@ -125,7 +125,7 @@ export function createPassService({
     const now = clock.now();
     const result = await db.transaction(async (trx) => {
       await passes.expireAppointmentNoShows(now, trx);
-      const { kiosk, destinations } = await kioskOptions(kioskCode, trx, false);
+      const { kiosk, destinations, markerKiosk } = await kioskOptions(kioskCode, trx, false);
       const student = await passes.findStudentByNumber(studentNumber, trx);
       if (!student) {
         throw new ValidationError('Student ID was not found');
@@ -145,17 +145,29 @@ export function createPassService({
         trx,
       );
       if (!currentPass) {
+        if (markerKiosk) {
+          return {
+            action: 'marker',
+            kiosk,
+            destinations,
+            markerKiosk,
+            student,
+            appointmentPrompt: false,
+            appointments: [],
+          };
+        }
         return {
           action: 'create',
           kiosk,
           destinations,
+          markerKiosk,
           student,
           appointmentPrompt: upcomingAppointments.length > 0,
           appointments: upcomingAppointments,
         };
       }
       if (currentPass.status === 'pending_approval') {
-        return { action: 'pending', kiosk, destinations, student, pass: currentPass };
+        return { action: 'pending', kiosk, destinations, markerKiosk, student, pass: currentPass };
       }
       if (currentPass.timeout_at && new Date(currentPass.timeout_at) <= now) {
         const patch = {
@@ -182,6 +194,7 @@ export function createPassService({
           action: 'expired',
           kiosk,
           destinations,
+          markerKiosk,
           student,
           pass: { ...currentPass, ...patch },
         };
@@ -223,6 +236,7 @@ export function createPassService({
         action: eventType,
         kiosk,
         destinations,
+        markerKiosk,
         student,
         pass: { ...currentPass, ...patch },
       };
@@ -249,7 +263,10 @@ export function createPassService({
   }) {
     const now = clock.now();
     const result = await db.transaction(async (trx) => {
-      const { kiosk } = await kioskOptions(kioskCode, trx, false);
+      const { kiosk, markerKiosk } = await kioskOptions(kioskCode, trx, false);
+      if (markerKiosk) {
+        throw new ValidationError('This kiosk can only record pass scans');
+      }
       const student = await passes.findStudentByNumber(studentNumber, trx);
       if (!student) {
         throw new ValidationError('Student ID was not found');
@@ -347,7 +364,10 @@ export function createPassService({
   }) {
     const now = clock.now();
     const result = await db.transaction(async (trx) => {
-      const { kiosk, destinations } = await kioskOptions(kioskCode, trx, false);
+      const { kiosk, destinations, markerKiosk } = await kioskOptions(kioskCode, trx, false);
+      if (markerKiosk) {
+        throw new ValidationError('This kiosk can only record pass scans');
+      }
       const student = await passes.findStudentByNumber(studentNumber, trx);
       if (!student) {
         throw new ValidationError('Student ID was not found');
@@ -845,6 +865,13 @@ export function createPassService({
 
 function isBathroom(location) {
   return location.type === 'bathroom' || /bathroom|restroom|toilet/i.test(location.name);
+}
+
+function isMarkerKiosk(kiosk) {
+  return kiosk.location_type === 'round_trip' || isBathroom({
+    type: kiosk.location_type,
+    name: kiosk.location_name,
+  });
 }
 
 function isTimedOut(pass, now) {

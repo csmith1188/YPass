@@ -16,9 +16,12 @@
       <li class="teacher-data">
         <p class="account-info-box">✉ <%= currentUser.primary_email || 'no email' %></p>
         <% if (locations.length) { %>
+          <span class="small-muted">Your locations</span>
             <% locations.forEach((location) => { %>
                 <p class="account-info-box">⌂ <span data-language-ignore><%= location.name %></span></p>
             <% }) %>
+        <% } else { %>
+          <span class="small-muted">Your locations</span>
         <% } %>
         <form class="inline" method="post" action="/auth/logout">
           <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
