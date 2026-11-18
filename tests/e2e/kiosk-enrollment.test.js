@@ -21,7 +21,7 @@ describe('kiosk enrollment', () => {
       primary_email: `${managerId}@example.test`,
       status: 'active',
     });
-    const location = await ctx.container.db.knex('locations').first();
+    const location = await ctx.container.db.knex('locations').where({ active: true }).first();
     const created = await ctx.container.kioskService.createEnrollmentCode({
       createdBy: managerId,
       name: 'Library Kiosk',
@@ -60,7 +60,7 @@ describe('kiosk enrollment', () => {
       primary_email: `${managerId}@example.test`,
       status: 'active',
     });
-    const location = await ctx.container.db.knex('locations').first();
+    const location = await ctx.container.db.knex('locations').where({ active: true }).first();
     const existing = await ctx.container.db.knex('kiosks').where({ kiosk_code: 'KIOSK-001' }).first();
     if (!existing) {
       await ctx.container.db.knex('kiosks').insert({
@@ -95,7 +95,7 @@ describe('kiosk enrollment', () => {
     expect(started.body.enrollmentCode).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
     expect(started.body.enrollmentToken).toHaveLength(64);
 
-    const location = await ctx.container.db.knex('locations').first();
+    const location = await ctx.container.db.knex('locations').where({ active: true }).first();
     const completed = await ctx.container.kioskService.completeEnrollment({
       enrollmentCode: started.body.enrollmentCode,
       name: 'Automatic Kiosk',
@@ -177,7 +177,7 @@ describe('kiosk enrollment', () => {
 
   it('rejects a manager completion that duplicates a kiosk name at the location', async () => {
     ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
-    const location = await ctx.container.db.knex('locations').first();
+    const location = await ctx.container.db.knex('locations').where({ active: true }).first();
     const existingKiosk = await ctx.container.db.knex('kiosks').where({ location_id: location.id }).first();
     const started = await ctx.container.kioskService.startEnrollment({});
 

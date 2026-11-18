@@ -168,6 +168,7 @@ Tests use Vitest and temporary SQLite databases through `tests/helpers/`. Extern
 ## Hall-pass and kiosk ownership
 
 - `src/services/pass-service.js` is the authoritative pass state machine. It enforces student identity, one active pass, destination-aware scans, round-trip transitions, appointment auto-approval, server-clock expiry, a six-student bathroom capacity, and a two-student-per-origin-classroom bathroom capacity.
+- Kiosks assigned to `round_trip` or `bathroom` locations are scan-only markers: they can record transitions for existing passes but cannot create manual or appointment passes, and their student scan page must not show destination selection.
 - Teacher dashboards and pass actions are authorized by the assigned teacher of the pass's origin location; destination-location assignment does not grant pass access.
 - Pending pass requests and auto-started appointment passes notify the assigned origin teacher through the server-side Socket.IO room `teacher:<userId>` after the database transaction commits; the teacher page may subscribe only when Socket.IO is enabled.
 - `src/repositories/index.js` owns hall-pass, appointment, location, kiosk, event, and heartbeat queries. The partial unique index `passes_one_active_per_student` is the database concurrency guard.
