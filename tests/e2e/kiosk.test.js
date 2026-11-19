@@ -109,6 +109,31 @@ describe('kiosk pass flow', () => {
     expect(stored.status).toBe('pending_approval');
   });
 
+  it('shows an inline error when a kiosk receives an unknown student ID', async () => {
+    ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
+    const kiosk = await ctx.container.db
+      .knex('kiosks')
+      .where({ kiosk_code: 'indoor-weather-station' })
+      .first();
+    const agent = (await import('supertest')).default.agent(ctx.app);
+    const session = await agent
+      .post('/api/v1/kiosks/session')
+      .set('x-kiosk-code', kiosk.kiosk_code)
+      .set('x-kiosk-secret', 'change-me');
+    expect(session.status).toBe(200);
+
+    const page = await agent.get('/kiosk/pass');
+    const response = await agent
+      .post('/kiosk/scan')
+      .type('form')
+      .send({ _csrf: extractCsrf(page.text), studentNumber: 'invalid-student-id' });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('Student ID was not found');
+    expect(response.text).toContain('value="invalid-student-id"');
+    expect(response.text).not.toContain('An unexpected error occurred');
+  });
+
   it('requires a central kiosk session for the server-rendered pass page', async () => {
     ctx = await createTestApp({ LOCAL_AUTH_EMAIL_FLOW: 'disabled' });
     const kiosk = await ctx.container.db
