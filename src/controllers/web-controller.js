@@ -357,7 +357,7 @@ export function createWebController(container) {
               form: req.body,
               message: { type: 'error', text: error.message },
             },
-            error.status,
+            200,
           );
         } catch (renderError) {
           next(renderError);
